@@ -1,0 +1,16 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+
+    level: 6
+
+    tmpDir: storage/framework/phpstan
+
+    excludePaths:
+        - app/Providers/*Provider.php
+
+    checkOctaneCompatibility: false
+    checkModelProperties: false

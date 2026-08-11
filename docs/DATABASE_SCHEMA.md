@@ -1,0 +1,56 @@
+# Database Schema
+
+## Status
+
+Phase 0: conventions and cross-cutting rules only. No domain tables exist yet — those are
+introduced starting Phase 3 (Provider Onboarding) and documented here as each migration lands.
+This document must stay in sync with `apps/backend/database/migrations/`.
+
+## Engine
+
+PostgreSQL + PostGIS. No other database engine is used for the system of record.
+
+## Conventions
+
+- **Primary keys**: internal bigint auto-increment primary keys are fine for joins/FKs, but any
+  entity referenced in a public URL or API response (`orders`, `providers`, `trips`, `payments`,
+  `disputes`, and similar) additionally carries a `public_id` ULID column (unique, indexed) that
+  is what the API exposes — never the raw integer ID. ULID, not UUIDv4, so IDs are sortable and
+  index-friendly. This is not a security control by itself; every request is still authorized
+  via Policies (see `docs/SECURITY.md`).
+- **Money**: integer minor units (halalas) — `SAR 185.50` is stored as `18550`. Never `float` or
+  `double` for anything money-related. A `currency` column (ISO 4217 code, default `SAR`)
+  accompanies every money column set so multi-currency isn't a rewrite later.
+- **Time**: `timestamptz` columns stored in UTC. Display conversion to `Asia/Riyadh` happens at
+  the presentation layer, never by shifting stored values.
+- **Geography**: PostGIS `geography(Point, 4326)` for point locations (pickup, dropoff, live
+  driver position, provider base), with a GiST spatial index. Radius/nearby queries use PostGIS
+  functions (`ST_DWithin`, `ST_Distance`) — never manual Haversine math in PHP.
+- **Enums**: PHP backed enums map to Postgres `varchar` + a `CHECK` constraint (not native
+  Postgres `ENUM` types, to keep adding new states a simple migration rather than a type
+  alteration). No magic strings in application code.
+- **Soft deletes**: added only where a real business need exists (e.g. an order must remain
+  visible in history after "cancellation", which is itself a status, not a delete). Not applied
+  to every model by default.
+- **Foreign keys**: always declared with an explicit `onDelete` behavior — no implicit cascade
+  left to chance.
+- **Indexes**: every foreign key, every column used in a `WHERE`/`ORDER BY` on a
+  frequently-queried table, and composite indexes for common multi-column lookups (e.g.
+  provider + status for dispatch candidate queries).
+
+## Immutability rules
+
+- **Pricing**: every order stores a `pricing_snapshot` (JSON) capturing the rules/rates/version
+  used at quote time. Changing pricing rules later never changes historical orders (see
+  `docs/PRICING_ENGINE.md`).
+- **Ledger**: financial ledger entries are append-only. Corrections are new `adjustment` entries,
+  never edits to historical rows (see `docs/PAYMENT_ARCHITECTURE.md` and
+  `docs/SETTLEMENT_ARCHITECTURE.md`).
+- **Audit log**: audit log rows are never updated or deleted by application code (see
+  `docs/SECURITY.md` §Audit).
+
+## Migrations
+
+All schema changes go through Laravel migrations — no manual production DDL. Migrations must be
+safe to run against a live database (additive where possible; destructive changes are staged
+across a deprecate → backfill → drop sequence rather than a single breaking migration).
