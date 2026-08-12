@@ -31,4 +31,7 @@ enum ErrorCode: string
     case MfaChallengeExpired = 'MFA_CHALLENGE_EXPIRED';
 
     case MapsProviderUnavailable = 'MAPS_PROVIDER_UNAVAILABLE';
+
+    case PricingUnavailable = 'PRICING_UNAVAILABLE';
+    case ManualQuoteRequired = 'MANUAL_QUOTE_REQUIRED';
 }

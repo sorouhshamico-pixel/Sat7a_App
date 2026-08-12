@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\Admin\DocumentVerificationController;
 use App\Http\Controllers\Api\V1\Admin\DriverController as AdminDriverController;
+use App\Http\Controllers\Api\V1\Admin\PricingController as AdminPricingController;
 use App\Http\Controllers\Api\V1\Admin\ProviderController as AdminProviderController;
 use App\Http\Controllers\Api\V1\Admin\RoleController;
 use App\Http\Controllers\Api\V1\Admin\TowTruckController as AdminTowTruckController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Maps\CityController;
 use App\Http\Controllers\Api\V1\Maps\MapsController;
+use App\Http\Controllers\Api\V1\Pricing\QuoteController;
 use App\Http\Controllers\Api\V1\Providers\ProviderController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDocumentController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDriverController;
@@ -149,6 +151,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/route', [MapsController::class, 'route'])->name('route');
     });
 
+    // Public — a guest builds a quote before authenticating (see
+    // docs/PRODUCT_REQUIREMENTS.md).
+    Route::post('/pricing/quote', [QuoteController::class, 'store'])
+        ->middleware('throttle:quote')
+        ->name('pricing.quote');
+
     // Admin/platform management. Fully-privileged token required, plus the
     // specific permission for each action (see docs/ROLES_PERMISSIONS.md).
     // Role changes are audited without exception — see
@@ -189,5 +197,15 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/tow-trucks/{towTruck}/suspend', [AdminTowTruckController::class, 'suspend'])
             ->middleware('can:fleet.suspend')
             ->name('tow-trucks.suspend');
+
+        Route::get('/pricing/versions', [AdminPricingController::class, 'index'])
+            ->middleware('can:pricing.view')
+            ->name('pricing.versions.index');
+        Route::post('/pricing/versions', [AdminPricingController::class, 'store'])
+            ->middleware('can:pricing.update')
+            ->name('pricing.versions.store');
+        Route::post('/pricing/versions/{pricingRuleVersion}/activate', [AdminPricingController::class, 'activate'])
+            ->middleware('can:pricing.update')
+            ->name('pricing.versions.activate');
     });
 });

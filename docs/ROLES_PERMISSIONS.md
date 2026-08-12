@@ -114,6 +114,14 @@ parameter. Platform-side suspension (`/api/v1/admin/drivers/{driver}/suspend`,
 `operations_manager` — both audited via `App\Domain\Drivers\Actions\SuspendDriverAction` /
 `App\Domain\Fleet\Actions\SuspendTowTruckAction`.
 
+## Pricing (implemented, Phase 7)
+
+`pricing.view` (list rate-card versions) is granted to `provider_owner`, `finance_officer`, and
+`operations_manager` — broad visibility, since pricing affects everyone's business. `pricing.update`
+(create/activate a version) is granted **only** to `admin`/`super_admin` — a financially
+critical, platform-wide change stays tightly held, unlike view access. Both actions the update
+permission gates are audited via `App\Domain\Audit\Services\AuditLogger`.
+
 ## Audit logging (implemented)
 
 `App\Domain\Audit\Services\AuditLogger` writes an immutable `audit_logs` row

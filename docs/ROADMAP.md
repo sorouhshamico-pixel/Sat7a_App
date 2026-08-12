@@ -15,8 +15,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 3 | Provider Onboarding | Done |
 | 4 | Fleet & Drivers | Done |
 | 5 | Customer Profiles & Vehicles | Done |
-| 6 | Maps & Location Foundation | **Partially done — see notes** |
-| 7 | Pricing Engine | Not started |
+| 6 | Maps & Location Foundation | Partially done — see notes |
+| 7 | Pricing Engine | **In progress** |
 | 8 | Orders | Not started |
 | 9 | Dispatch & Matching | Not started |
 | 10 | Realtime | Not started |
@@ -195,6 +195,38 @@ be verified there regardless of local machine state.
 Not yet in this phase: real Google API credentials (code is complete and ready — see
 `App\Domain\Maps\Adapters\Google\*` — but untested against the live API since no key exists;
 see docs/SECURITY.md §Secrets); PostGIS setup on this machine (`docs/DEPLOYMENT.md`).
+
+## Phase 7 — Pricing Engine (this phase)
+
+Implemented: a versioned rate card (`pricing_rule_versions`) — every component from spec §44
+(base fee, minimum fare, per-km distance rate, per-service-type fee, per-vehicle-category
+multiplier, night fee with a configurable window, per-minute waiting fee with free minutes, a
+reserved zone fee, a platform service fee percentage, VAT percentage) lives in the database,
+never hardcoded, editable only via `pricing.update` (granted to admin/super_admin only) and
+always audited. Exactly one version is active at a time; creating a version never activates it —
+activation is a separate, audited step, so a draft rate card can be reviewed before going live.
+
+`App\Domain\Pricing\Actions\GenerateQuoteAction` computes the full breakdown and returns a
+`PricingSnapshot` — the same shape an Order will store verbatim once Phase 8 exists, so
+historical orders won't move when rates change later (see docs/DATABASE_SCHEMA.md
+§Immutability). The public `POST /api/v1/pricing/quote` endpoint lets a guest get a price before
+authenticating; a `requires_manual_quote` flag (for the situations spec §48 lists — severely
+damaged vehicle, no wheels, underground parking, ...) skips the calculator entirely and returns
+`price_type: manual_quote` with no computed total, rather than showing an automated price for a
+case that doesn't suit one.
+
+`vehicle_category` is a small, fixed pricing-only classification
+(`App\Domain\Pricing\Enums\VehicleCategory`), deliberately separate from the customer-facing
+free-text `vehicles.type` field from Phase 5 — one is a display field, the other a fee-multiplier
+lookup key, and conflating them would have made either the customer-facing field oddly
+restrictive or the pricing lookup unreliable.
+
+Not yet in this phase: coupons/discounts (deferred — spec explicitly lists promo codes/referrals
+as a future feature; the `discount` field exists in every snapshot and is always 0 for now, so
+adding a coupon system later doesn't change the snapshot shape); zone-based pricing (the
+`zone_fee` column exists and is always 0 — depends on Phase 6's deferred PostGIS service zones);
+VAT rate/rules need legal/tax review before production (see docs/COMPLIANCE.md) — the 15%
+default is Saudi Arabia's standard rate but is not asserted here as legally reviewed.
 
 ## Definition of Done for every phase
 

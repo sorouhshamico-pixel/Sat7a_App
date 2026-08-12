@@ -98,6 +98,7 @@ super-admin action is exempt from this.
 | Order create | 5 / 10 min |
 | Public estimate | rate limited (exact figure set in Phase 8) |
 | Maps (geocode/places/route) | 30 / min per user or IP — implemented, Phase 6 |
+| Pricing quote | 20 / min per user or IP — implemented, Phase 7 |
 | Admin login | strict, tighter than customer login |
 
 ## Security headers (implemented, Phase 0)

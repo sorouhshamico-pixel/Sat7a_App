@@ -58,5 +58,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('maps', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
+
+        // Public quote endpoint — same reasoning as `maps` above.
+        RateLimiter::for('quote', function (Request $request) {
+            return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }

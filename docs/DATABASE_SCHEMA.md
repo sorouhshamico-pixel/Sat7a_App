@@ -44,6 +44,12 @@ no real boundary data exists to use), and a `location geography(Point,4326)` col
 database (`type "geography" does not exist`) and were deliberately held back rather than shipped
 half-verified — see `docs/ROADMAP.md` Phase 6.
 
+- `pricing_rule_versions` — every pricing component (base fee, minimum fare, per-km rate,
+  per-service-type fee, per-vehicle-category multiplier, night fee + window, waiting fee + free
+  minutes, zone fee (reserved, 0 for now), platform service fee %, VAT %), plus `is_active`
+  (exactly one at a time), `effective_from`, `created_by`, `notes`. See
+  `docs/PRICING_ENGINE.md` (Phase 7).
+
 ## Engine
 
 PostgreSQL + PostGIS. No other database engine is used for the system of record.
