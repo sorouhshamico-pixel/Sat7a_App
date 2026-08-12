@@ -1,5 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
+use App\Http\Controllers\Api\V1\Auth\OtpController;
+use App\Http\Controllers\Api\V1\Auth\SessionController;
+use App\Http\Controllers\Api\V1\Auth\TwoFactorController;
 use App\Http\Controllers\Api\V1\HealthController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,4 +20,42 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/health', HealthController::class)->name('health');
+
+    Route::prefix('auth')->name('auth.')->group(function (): void {
+        // Customer / provider-staff phone + OTP (see docs/SECURITY.md §OTP handling).
+        Route::post('/otp/send', [OtpController::class, 'send'])
+            ->middleware('throttle:otp-send')
+            ->name('otp.send');
+        Route::post('/otp/verify', [OtpController::class, 'verify'])
+            ->middleware('throttle:otp-verify')
+            ->name('otp.verify');
+
+        // Admin/platform-staff email + password, always followed by a
+        // mandatory MFA step — see docs/SECURITY.md §Authentication.
+        Route::post('/admin/login', [AdminAuthController::class, 'login'])
+            ->middleware('throttle:admin-login')
+            ->name('admin.login');
+
+        Route::middleware(['auth:sanctum', 'abilities:mfa-setup'])->group(function (): void {
+            Route::post('/admin/mfa/setup', [TwoFactorController::class, 'setup'])->name('admin.mfa.setup');
+            Route::post('/admin/mfa/confirm', [TwoFactorController::class, 'confirm'])->name('admin.mfa.confirm');
+        });
+
+        Route::post('/admin/mfa/challenge', [TwoFactorController::class, 'verifyChallenge'])
+            ->middleware(['auth:sanctum', 'abilities:mfa-challenge'])
+            ->name('admin.mfa.challenge');
+
+        // Requires a fully-privileged token (abilities contains '*') — the
+        // narrowly-scoped mfa-setup/mfa-challenge tokens above must never
+        // be usable against general authenticated endpoints.
+        Route::middleware(['auth:sanctum', 'abilities:*'])->group(function (): void {
+            Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
+
+            Route::get('/sessions', [SessionController::class, 'index'])->name('sessions.index');
+            Route::delete('/sessions/{tokenId}', [SessionController::class, 'destroy'])
+                ->whereNumber('tokenId')
+                ->name('sessions.destroy');
+            Route::post('/sessions/revoke-all', [SessionController::class, 'destroyAll'])->name('sessions.revoke-all');
+        });
+    });
 });

@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Domain\Users\Enums\UserStatus;
+use App\Domain\Users\Enums\UserType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -26,20 +28,46 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
+            'phone' => '+9665'.fake()->unique()->numerify('########'),
+            'phone_verified_at' => now(),
+            'user_type' => UserType::Customer,
+            'status' => UserStatus::Active,
             'remember_token' => Str::random(10),
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
+    public function customer(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+        return $this->state(fn () => [
+            'user_type' => UserType::Customer,
+            'email' => null,
+            'password' => null,
         ]);
+    }
+
+    public function providerStaff(): static
+    {
+        return $this->state(fn () => [
+            'user_type' => UserType::ProviderStaff,
+            'email' => null,
+            'password' => null,
+        ]);
+    }
+
+    public function admin(): static
+    {
+        return $this->state(fn () => [
+            'user_type' => UserType::AdminStaff,
+            'phone' => null,
+            'phone_verified_at' => null,
+            'email' => fake()->unique()->safeEmail(),
+            'email_verified_at' => now(),
+            'password' => static::$password ??= Hash::make('password'),
+        ]);
+    }
+
+    public function suspended(): static
+    {
+        return $this->state(fn () => ['status' => UserStatus::Suspended]);
     }
 }

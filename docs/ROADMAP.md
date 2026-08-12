@@ -9,8 +9,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Architecture & Foundation | **In progress** |
-| 1 | Authentication & Security Foundation | Not started |
+| 0 | Architecture & Foundation | Done |
+| 1 | Authentication & Security Foundation | **In progress** |
 | 2 | Roles & Permissions | Not started |
 | 3 | Provider Onboarding | Not started |
 | 4 | Fleet & Drivers | Not started |
@@ -52,6 +52,30 @@ Definition of done for Phase 0 specifically:
 - CI pipeline passes on push.
 - Documentation created (this set of files).
 - No secrets committed (`.env` is gitignored, `.env.example` has no real values).
+
+Status: done, except PostGIS extension activation, which needs a one-time admin-elevated step
+on this Windows dev machine (`infrastructure/install-postgis-windows.ps1`, documented in
+`docs/DEPLOYMENT.md`) that hasn't been run yet. Nothing built so far depends on PostGIS —
+it's needed starting Phase 6.
+
+## Phase 1 — Authentication & Security Foundation (this phase)
+
+Implemented: customer/provider-staff phone + OTP login (`app/Domain/Authentication/`), admin
+email + password + mandatory TOTP MFA with recovery codes, session/device management (list,
+revoke one, revoke all), the `/api/v1` response envelope wired into a global exception renderer
+(`app/Exceptions/ApiExceptionRenderer.php`) so every error — validation, auth, not-found, rate
+limit, unexpected — comes back in the standard shape with a stable `ErrorCode`, baseline
+security headers, and named rate limiters for OTP send/verify and admin login (see
+`docs/SECURITY.md` and `docs/API_SPECIFICATION.md` for details).
+
+Not yet in this phase: roles/permissions enforcement beyond "is this the right user type"
+(that's Phase 2), provider-staff account provisioning (Phase 3/4 — for now, provider-staff OTP
+login only works for accounts seeded directly, since there's no onboarding flow yet).
+
+Testing note: the test suite runs against a real local PostgreSQL database
+(`tow_platform_testing`), not SQLite, because migrations use Postgres-specific syntax (CHECK
+constraints now, PostGIS geography columns from Phase 6 on) that SQLite can't run. CI
+provisions the same database as a service container.
 
 ## Definition of Done for every phase
 

@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'sms' => [
+        'driver' => env('SMS_PROVIDER_DRIVER', 'log'),
+        'api_key' => env('SMS_PROVIDER_API_KEY'),
+        'sender_id' => env('SMS_PROVIDER_SENDER_ID'),
+    ],
+
 ];

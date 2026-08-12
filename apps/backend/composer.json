@@ -12,6 +12,7 @@
         "laravel/reverb": "^1.11",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
+        "pragmarx/google2fa": "^9.0",
         "predis/predis": "^3.5"
     },
     "require-dev": {

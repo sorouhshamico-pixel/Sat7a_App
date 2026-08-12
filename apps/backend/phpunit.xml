@@ -23,8 +23,18 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <!--
+        Postgres, not sqlite: this project commits to PostgreSQL + PostGIS as
+        the only database engine (see docs/DATABASE_SCHEMA.md), and migrations
+        use Postgres-specific syntax (CHECK constraints, later PostGIS
+        geography columns) that sqlite can't run. CI provisions the same
+        `tow_platform_testing` database as a service container.
+        -->
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="5432"/>
+        <env name="DB_DATABASE" value="tow_platform_testing"/>
+        <env name="DB_USERNAME" value="postgres"/>
         <env name="DB_URL" value=""/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>

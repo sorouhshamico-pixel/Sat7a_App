@@ -2,11 +2,27 @@
 
 ## Status
 
-Phase 0: conventions only. The actual OpenAPI 3.x document will live at
-`packages/api-contracts/openapi.yaml` and be generated/maintained starting with Phase 1
-(Authentication), growing as each phase adds endpoints. It must stay in sync with the real
-routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
-exist yet.
+Phase 1: authentication endpoints exist (listed below). The actual OpenAPI 3.x document will
+live at `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint
+surface stabilizes further; for now this file is the source of truth and must stay in sync with
+the real routes in `apps/backend/routes/api.php` — never a description of an intended API that
+doesn't exist yet.
+
+## Implemented endpoints (Phase 1)
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | `/api/v1/auth/otp/send` | none (rate-limited) | Customer/provider-staff OTP request |
+| POST | `/api/v1/auth/otp/verify` | none (rate-limited) | Returns a fully-privileged token |
+| POST | `/api/v1/auth/admin/login` | none (rate-limited) | Returns a narrow `mfa-setup`/`mfa-challenge` token, never a full one |
+| POST | `/api/v1/auth/admin/mfa/setup` | token ability `mfa-setup` | Generates TOTP secret |
+| POST | `/api/v1/auth/admin/mfa/confirm` | token ability `mfa-setup` | Confirms TOTP, returns recovery codes + full token |
+| POST | `/api/v1/auth/admin/mfa/challenge` | token ability `mfa-challenge` | Verifies TOTP or a recovery code, returns full token |
+| POST | `/api/v1/auth/logout` | token ability `*` | Revokes the caller's current token |
+| GET | `/api/v1/auth/sessions` | token ability `*` | Lists the caller's own active tokens |
+| DELETE | `/api/v1/auth/sessions/{tokenId}` | token ability `*` | Revokes one of the caller's own tokens |
+| POST | `/api/v1/auth/sessions/revoke-all` | token ability `*` | Revokes all of the caller's tokens except the current one |
+| GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning
 

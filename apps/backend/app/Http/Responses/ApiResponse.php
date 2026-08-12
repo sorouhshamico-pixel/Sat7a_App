@@ -2,6 +2,7 @@
 
 namespace App\Http\Responses;
 
+use App\Support\Enums\ErrorCode;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -26,14 +27,14 @@ class ApiResponse
     /**
      * @param  array<string, mixed>  $meta
      */
-    public static function error(string $code, string $message, int $status = 400, array $meta = []): JsonResponse
+    public static function error(ErrorCode $code, string $message, int $status = 400, array $meta = []): JsonResponse
     {
         return response()->json([
             'data' => null,
             'meta' => (object) $meta,
             'errors' => [
                 [
-                    'code' => $code,
+                    'code' => $code->value,
                     'message' => $message,
                 ],
             ],

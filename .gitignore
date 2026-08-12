@@ -28,6 +28,7 @@ apps/backend/storage/framework/testing/*
 !apps/backend/storage/framework/testing/.gitignore
 apps/backend/storage/framework/views/*
 !apps/backend/storage/framework/views/.gitignore
+apps/backend/storage/framework/phpstan/
 apps/backend/storage/logs/*
 !apps/backend/storage/logs/.gitignore
 apps/backend/bootstrap/cache/*
@@ -35,6 +36,7 @@ apps/backend/bootstrap/cache/*
 apps/backend/public/hot
 apps/backend/public/storage
 apps/backend/auth.json
+apps/backend/dump.rdb
 
 # Frontend (Next.js)
 apps/web/node_modules/

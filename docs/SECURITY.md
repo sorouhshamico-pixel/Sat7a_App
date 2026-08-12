@@ -2,10 +2,10 @@
 
 ## Status
 
-Phase 0: baseline controls only (security headers, rate-limit scaffolding, secrets policy, data
-classification). Authentication/OTP/session/MFA controls land in Phase 1; a dedicated
-Phase 23 security-hardening audit happens before production readiness. This document is updated
-as each control is implemented — it is not a promise of controls that don't exist yet.
+Phase 1: authentication, OTP, sessions, and admin MFA are implemented (see below) — everything
+else in this document past that section is still design/Phase 0 baseline. A dedicated Phase 23
+security-hardening audit happens before production readiness. This document is updated as each
+control is implemented — it is not a promise of controls that don't exist yet.
 
 ## Threat model reference (OWASP)
 
@@ -37,22 +37,38 @@ Access to confidential/highly-sensitive data requires an explicit permission (e.
 `documents.view_sensitive`, `customers.view_sensitive`) — not implied by role alone (see
 `docs/ROLES_PERMISSIONS.md`).
 
-## Authentication (design; implemented in Phase 1)
+## Authentication (implemented, Phase 1)
 
-- Customer & Provider/Driver: mobile number + OTP.
-- Admin: email/username + strong password + mandatory MFA (TOTP) + recovery codes.
-- No super-admin action bypasses audit logging, ever.
+- Customer & Provider-staff: mobile number + OTP (`App\Domain\Authentication\Actions\SendOtpAction`,
+  `VerifyOtpAction`). Provider-staff accounts are never auto-created by OTP login — only
+  customers are; provider-staff must already exist (provisioned in Phase 3/4), otherwise login
+  fails with `NOT_FOUND` rather than silently registering an unverified account.
+- Admin: email + password + **mandatory** TOTP MFA + recovery codes
+  (`App\Domain\Authentication\Actions\AdminLoginAction`,
+  `App\Domain\Authentication\Services\TwoFactorAuthenticationService`). A bare password never
+  yields a fully-privileged token — login always returns a narrowly-scoped, short-lived Sanctum
+  token (ability `mfa-setup` or `mfa-challenge` only) that can *only* reach the corresponding MFA
+  endpoint; every other authenticated endpoint requires the `*` ability, which those tokens don't
+  have (see `routes/api.php`).
+- Audit logging of admin actions lands in Phase 2 alongside RBAC — not yet implemented.
 
-## OTP handling (design; implemented in Phase 1)
+## OTP handling (implemented, Phase 1)
 
-Hashed at rest (never plain text), short expiration, capped verify attempts, capped send
-frequency, resend cooldown, IP + device rate limiting, one-time use, invalidated immediately on
-successful verification, never written to logs.
+Hashed at rest via `Hash::make()` (never plain text), 5-minute expiration, capped at 5 verify
+attempts (`otp_codes.attempts`/`max_attempts`), send-rate-limited to 5/hour per phone + 20/hour
+per IP (`otp-send` named limiter), verify-rate-limited per phone+IP (`otp-verify` named limiter),
+one-time use (`consumed_at`), any still-pending OTP for a phone is invalidated the moment a new
+one is requested, never written to logs (the SMS adapter logs the *message text*, in
+`SMS_PROVIDER_DRIVER=log` dev mode only — the code itself is never separately logged).
 
-## Sessions (design; implemented in Phase 1)
+## Sessions (implemented, Phase 1)
 
-Users can see registered devices, log out a specific device, log out everywhere, and terminate
-suspicious sessions. Session identifiers rotate on authentication.
+`App\Http\Controllers\Api\V1\Auth\SessionController`: a user can list their active
+sessions (Sanctum tokens = devices/logins) with the current one flagged, revoke a specific
+session, or revoke all others. A user can only ever act on their own tokens — there is no
+cross-user session lookup. "Rotate session identifiers on authentication" doesn't apply the way
+it would to cookie sessions: every OTP/MFA success issues a brand-new token rather than reusing
+one.
 
 ## Rate limiting baseline (tunable, implemented per-endpoint as each lands)
 
