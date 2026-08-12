@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 5: authentication, admin role-management, provider onboarding/compliance, fleet/driver
-management, and customer profile/vehicle/saved-location endpoints exist (listed below). The
-actual OpenAPI 3.x document will live at
+Phase 6: authentication, admin role-management, provider onboarding/compliance, fleet/driver
+management, customer profile/vehicle/saved-location, and maps/cities endpoints exist (listed
+below). The actual OpenAPI 3.x document will live at
 `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
 stabilizes further; for now this file is the source of truth and must stay in sync with the real
 routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
@@ -62,6 +62,12 @@ exist yet.
 | POST | `/api/v1/customers/me/locations` | token ability `*` | Adds a saved location (one home/work max) |
 | PATCH | `/api/v1/customers/me/locations/{locationPublicId}` | token ability `*` | Updates a saved location |
 | DELETE | `/api/v1/customers/me/locations/{locationPublicId}` | token ability `*` | Removes a saved location |
+| GET | `/api/v1/cities` | none | Active (launched) cities only |
+| POST | `/api/v1/maps/geocode` | none (rate-limited) | Address → coordinates; guest-usable |
+| POST | `/api/v1/maps/reverse-geocode` | none (rate-limited) | Coordinates → address |
+| GET | `/api/v1/maps/places/autocomplete` | none (rate-limited) | Place search suggestions |
+| GET | `/api/v1/maps/places/{placeId}` | none (rate-limited) | Full place details incl. coordinates |
+| POST | `/api/v1/maps/route` | none (rate-limited) | Distance + duration between two points |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

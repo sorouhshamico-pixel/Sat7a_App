@@ -14,8 +14,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 2 | Roles & Permissions | Done |
 | 3 | Provider Onboarding | Done |
 | 4 | Fleet & Drivers | Done |
-| 5 | Customer Profiles & Vehicles | **In progress** |
-| 6 | Maps & Location Foundation | Not started |
+| 5 | Customer Profiles & Vehicles | Done |
+| 6 | Maps & Location Foundation | **Partially done — see notes** |
 | 7 | Pricing Engine | Not started |
 | 8 | Orders | Not started |
 | 9 | Dispatch & Matching | Not started |
@@ -164,6 +164,37 @@ Phase 3, since they aren't compliance-sensitive) via a small shared `StorePublic
 
 Not yet in this phase: any admin-side customer management UI (not part of this phase's scope);
 location autocomplete/geocoding (Phase 6, Maps & Location Foundation).
+
+## Phase 6 — Maps & Location Foundation (this phase, partially done)
+
+**Implemented and verified:** the map provider abstraction
+(`App\Domain\Maps\Contracts\{GeocodingProvider,PlacesProvider,RoutingProvider}`) with a complete
+Google Maps adapter (unexercised without a real key, but ready — see below) and a deterministic
+fake adapter, bound automatically based on whether `GOOGLE_MAPS_API_KEY` is set
+(`App\Providers\MapsServiceProvider`) — the exact same "interface + real adapter + fake
+fallback" pattern as SMS (Phase 1) and payments (planned for Phase 12). Public, rate-limited
+endpoints (`/api/v1/maps/geocode`, `/reverse-geocode`, `/places/autocomplete`, `/places/{id}`,
+`/route`) so the API key never reaches the client and a guest can build a quote before
+authenticating. A `cities` table/seeder (Riyadh active, five other cities seeded inactive) so
+domain logic never hardcodes "Riyadh" (spec §152), with a public `/api/v1/cities` endpoint.
+
+**Blocked, not implemented in this pass:** PostGIS-backed service zones and the "nearby tow
+truck" spatial search — the actual PostGIS extension still isn't installed on this dev machine
+(pending since Phase 0's one-time admin-elevation step; see `docs/DEPLOYMENT.md`). Two
+migrations (`service_zones`, and a `location geography` column on `tow_trucks`) were written,
+tested against a live `CREATE TABLE ... geography(...)` statement, and confirmed to fail with
+`SQLSTATE[42704]: type "geography" does not exist` — exactly the expected error. Since this
+project's test suite runs against a real Postgres database and refreshes the full schema before
+every test class, leaving those migrations in place would have broken every previously-passing
+test locally, not just new Phase 6 ones — so they were held back out of this commit entirely
+rather than shipped half-verified. They'll be reintroduced once PostGIS is active, most likely
+as part of Phase 9 (Dispatch), which is the actual consumer of nearby-search. CI's Postgres
+service container already runs the `postgis/postgis` image, so once these are re-added they'll
+be verified there regardless of local machine state.
+
+Not yet in this phase: real Google API credentials (code is complete and ready — see
+`App\Domain\Maps\Adapters\Google\*` — but untested against the live API since no key exists;
+see docs/SECURITY.md §Secrets); PostGIS setup on this machine (`docs/DEPLOYMENT.md`).
 
 ## Definition of Done for every phase
 

@@ -51,5 +51,12 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinutes(15, 20)->by('admin-login:ip:'.$request->ip()),
             ];
         });
+
+        // Public (guest quote flow doesn't require auth — see
+        // docs/PRODUCT_REQUIREMENTS.md), but bounded to control third-party
+        // API cost (see docs/ARCHITECTURE.md §6 Map cost optimization).
+        RateLimiter::for('maps', function (Request $request) {
+            return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
+        });
     }
 }

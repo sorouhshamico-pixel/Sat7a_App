@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\V1\Customers\SavedLocationController;
 use App\Http\Controllers\Api\V1\Customers\VehicleController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Maps\CityController;
+use App\Http\Controllers\Api\V1\Maps\MapsController;
 use App\Http\Controllers\Api\V1\Providers\ProviderController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDocumentController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDriverController;
@@ -34,6 +36,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/health', HealthController::class)->name('health');
+    Route::get('/cities', [CityController::class, 'index'])->name('cities.index');
 
     Route::prefix('auth')->name('auth.')->group(function (): void {
         // Customer / provider-staff phone + OTP (see docs/SECURITY.md §OTP handling).
@@ -134,6 +137,17 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])
         ->middleware(['auth:sanctum', 'abilities:*'])
         ->name('documents.download');
+
+    // Public (a guest builds a quote before authenticating — see
+    // docs/PRODUCT_REQUIREMENTS.md), rate-limited to control third-party
+    // API cost (see docs/ARCHITECTURE.md §6).
+    Route::prefix('maps')->name('maps.')->middleware('throttle:maps')->group(function (): void {
+        Route::post('/geocode', [MapsController::class, 'geocode'])->name('geocode');
+        Route::post('/reverse-geocode', [MapsController::class, 'reverseGeocode'])->name('reverse-geocode');
+        Route::get('/places/autocomplete', [MapsController::class, 'autocomplete'])->name('places.autocomplete');
+        Route::get('/places/{placeId}', [MapsController::class, 'placeDetails'])->name('places.details');
+        Route::post('/route', [MapsController::class, 'route'])->name('route');
+    });
 
     // Admin/platform management. Fully-privileged token required, plus the
     // specific permission for each action (see docs/ROLES_PERMISSIONS.md).

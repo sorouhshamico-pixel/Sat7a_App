@@ -15,7 +15,7 @@ Prerequisites installed on this machine:
 - PostGIS 3.6 (bundle merged into the PostgreSQL install — see below)
 - Redis (Laragon-bundled, `C:\laragon\bin\redis\redis-x64-5.0.14.1`)
 
-### One-time PostGIS setup
+### One-time PostGIS setup — now actually blocking (as of Phase 6)
 
 The PostGIS bundle has to be merged into `C:\Program Files\PostgreSQL\17\`, which requires
 administrator rights this project's automation doesn't have. Run once, in an **elevated**
@@ -27,6 +27,13 @@ powershell -ExecutionPolicy Bypass -File infrastructure\install-postgis-windows.
 
 This copies the PostGIS 3.6.2 bundle files into the PostgreSQL 17 install directory, creates the
 `tow_platform` database, and runs `CREATE EXTENSION postgis;`.
+
+This was a no-op deferral through Phases 0–5 — nothing needed it yet. As of Phase 6 it's a real
+blocker: the `service_zones` table and the tow-truck `location` geography column (nearby-search)
+were written and confirmed to fail against this database with
+`SQLSTATE[42704]: type "geography" does not exist`, and were held back out of the Phase 6 commit
+rather than shipped unverified (see `docs/ROADMAP.md` Phase 6). Run the script above before
+picking those back up — likely in Phase 9 (Dispatch), the actual consumer of nearby-search.
 
 ### Starting services
 

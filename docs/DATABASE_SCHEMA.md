@@ -33,6 +33,16 @@ stay in sync with `apps/backend/database/migrations/`.
   `formatted_address`; a partial unique index enforces at most one `home` and one `work` per
   customer — `custom` is unlimited. No location *history* — only the current point per label
   (Phase 5).
+- `cities` — `slug`, `name`, `name_ar`, `is_active`; Riyadh is the only active/launch city,
+  five others seeded inactive so expansion (spec §152) is a data change, not a domain-logic one
+  (Phase 6).
+
+**Not yet implemented — blocked on PostGIS** (see `docs/DEPLOYMENT.md` §One-time PostGIS
+setup): `service_zones` (city-scoped, center point + radius rather than a precise polygon —
+no real boundary data exists to use), and a `location geography(Point,4326)` column on
+`tow_trucks` for the nearby-search query. Both were written and confirmed to fail against this
+database (`type "geography" does not exist`) and were deliberately held back rather than shipped
+half-verified — see `docs/ROADMAP.md` Phase 6.
 
 ## Engine
 

@@ -29,4 +29,6 @@ enum ErrorCode: string
     case MfaAlreadyEnabled = 'MFA_ALREADY_ENABLED';
     case MfaNotEnabled = 'MFA_NOT_ENABLED';
     case MfaChallengeExpired = 'MFA_CHALLENGE_EXPIRED';
+
+    case MapsProviderUnavailable = 'MAPS_PROVIDER_UNAVAILABLE';
 }
