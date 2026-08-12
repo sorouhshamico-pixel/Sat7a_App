@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Domain\Authorization\Concerns\HasRoles;
+use App\Domain\Customers\Models\Customer;
 use App\Domain\Providers\Models\Provider;
 use App\Domain\Users\Enums\UserStatus;
 use App\Domain\Users\Enums\UserType;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -45,6 +47,14 @@ class User extends Authenticatable
     public function provider(): BelongsTo
     {
         return $this->belongsTo(Provider::class);
+    }
+
+    /**
+     * @return HasOne<Customer, $this>
+     */
+    public function customer(): HasOne
+    {
+        return $this->hasOne(Customer::class);
     }
 
     /**

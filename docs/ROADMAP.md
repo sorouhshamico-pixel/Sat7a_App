@@ -13,8 +13,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 1 | Authentication & Security Foundation | Done |
 | 2 | Roles & Permissions | Done |
 | 3 | Provider Onboarding | Done |
-| 4 | Fleet & Drivers | **In progress** |
-| 5 | Customer Profiles & Vehicles | Not started |
+| 4 | Fleet & Drivers | Done |
+| 5 | Customer Profiles & Vehicles | **In progress** |
 | 6 | Maps & Location Foundation | Not started |
 | 7 | Pricing Engine | Not started |
 | 8 | Orders | Not started |
@@ -141,6 +141,29 @@ routes structurally do. Caught and fixed during Phase 4 rather than shipped (see
 Not yet in this phase: PostGIS geography for `current_latitude`/`current_longitude` (plain
 decimal columns for now — converted once spatial "nearby" queries land in Phase 6); dispatch
 integration for the reserved/en_route/etc. states (Phase 9); bank accounts (Phase 14).
+
+## Phase 5 — Customer Profiles & Vehicles (this phase)
+
+Implemented: a `customers` table holding what's genuinely customer-domain-specific (avatar,
+`preferences`, `notification_preferences`) — name/phone/email/locale/status/registration date
+already live on `users` from Phase 1, so they aren't duplicated. `App\Domain\Authentication\Actions\VerifyOtpAction`
+(Phase 1) now also creates the `Customer` profile row, with default notification preferences,
+the moment a brand-new customer auto-provisions on first OTP login — no separate "complete your
+profile" step is required before the account is usable.
+
+Saved vehicles (`vehicles`) and saved locations (`saved_locations`) are both simple,
+customer-scoped CRUD resources under `/api/v1/customers/me/...`, resolved via
+`App\Http\Controllers\Concerns\ResolvesCustomer` (mirrors `ResolvesProvider` from Phase 3/4) —
+never a `{customer}` route parameter. A customer can only ever have one saved "home" and one
+"work" location (checked in `AddSavedLocationAction`, backed by a Postgres partial unique
+index as the final guard) but unlimited "custom" ones; no location *history* is retained, only
+the current saved point per label (see docs/SECURITY.md §Data retention). Vehicle `type` is a
+free-text field rather than a fixed enum — categories vary too widely to enumerate usefully.
+Avatar/vehicle photos go through the public disk (not the private `documents` machinery from
+Phase 3, since they aren't compliance-sensitive) via a small shared `StorePublicImageAction`.
+
+Not yet in this phase: any admin-side customer management UI (not part of this phase's scope);
+location autocomplete/geocoding (Phase 6, Maps & Location Foundation).
 
 ## Definition of Done for every phase
 

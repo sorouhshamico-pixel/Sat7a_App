@@ -2,8 +2,9 @@
 
 ## Status
 
-Phase 4: authentication, admin role-management, provider onboarding/compliance, and fleet/driver
-management endpoints exist (listed below). The actual OpenAPI 3.x document will live at
+Phase 5: authentication, admin role-management, provider onboarding/compliance, fleet/driver
+management, and customer profile/vehicle/saved-location endpoints exist (listed below). The
+actual OpenAPI 3.x document will live at
 `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
 stabilizes further; for now this file is the source of truth and must stay in sync with the real
 routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
@@ -50,6 +51,17 @@ exist yet.
 | PATCH | `/api/v1/providers/me/fleet/{towTruckPublicId}/status` | token ability `*` + permission `fleet.manage` | Transitions status (validated matrix) |
 | POST | `/api/v1/admin/drivers/{driver}/suspend` | token ability `*` + permission `drivers.suspend` | Platform-wide, any provider (audited) |
 | POST | `/api/v1/admin/tow-trucks/{towTruck}/suspend` | token ability `*` + permission `fleet.suspend` | Platform-wide, any provider (audited) |
+| GET | `/api/v1/customers/me` | token ability `*` | The authenticated customer's profile |
+| PATCH | `/api/v1/customers/me` | token ability `*` | Updates name/email/locale/preferences |
+| POST | `/api/v1/customers/me/avatar` | token ability `*` | Uploads a profile photo (public storage) |
+| GET | `/api/v1/customers/me/vehicles` | token ability `*` | Lists saved vehicles |
+| POST | `/api/v1/customers/me/vehicles` | token ability `*` | Adds a saved vehicle |
+| PATCH | `/api/v1/customers/me/vehicles/{vehiclePublicId}` | token ability `*` | Updates a saved vehicle |
+| DELETE | `/api/v1/customers/me/vehicles/{vehiclePublicId}` | token ability `*` | Removes a saved vehicle |
+| GET | `/api/v1/customers/me/locations` | token ability `*` | Lists saved locations |
+| POST | `/api/v1/customers/me/locations` | token ability `*` | Adds a saved location (one home/work max) |
+| PATCH | `/api/v1/customers/me/locations/{locationPublicId}` | token ability `*` | Updates a saved location |
+| DELETE | `/api/v1/customers/me/locations/{locationPublicId}` | token ability `*` | Removes a saved location |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
 use App\Http\Controllers\Api\V1\Auth\SessionController;
 use App\Http\Controllers\Api\V1\Auth\TwoFactorController;
+use App\Http\Controllers\Api\V1\Customers\CustomerController;
+use App\Http\Controllers\Api\V1\Customers\SavedLocationController;
+use App\Http\Controllers\Api\V1\Customers\VehicleController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Providers\ProviderController;
@@ -105,6 +108,25 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->name('me.fleet.status');
             });
         });
+    });
+
+    // Customer self-service — always scoped to the caller's own profile;
+    // there is no {customer} route parameter (see
+    // docs/PRODUCT_REQUIREMENTS.md §Customer profile).
+    Route::prefix('customers')->name('customers.')->middleware(['auth:sanctum', 'abilities:*'])->group(function (): void {
+        Route::get('/me', [CustomerController::class, 'show'])->name('me.show');
+        Route::patch('/me', [CustomerController::class, 'update'])->name('me.update');
+        Route::post('/me/avatar', [CustomerController::class, 'uploadAvatar'])->name('me.avatar');
+
+        Route::get('/me/vehicles', [VehicleController::class, 'index'])->name('me.vehicles.index');
+        Route::post('/me/vehicles', [VehicleController::class, 'store'])->name('me.vehicles.store');
+        Route::patch('/me/vehicles/{vehiclePublicId}', [VehicleController::class, 'update'])->name('me.vehicles.update');
+        Route::delete('/me/vehicles/{vehiclePublicId}', [VehicleController::class, 'destroy'])->name('me.vehicles.destroy');
+
+        Route::get('/me/locations', [SavedLocationController::class, 'index'])->name('me.locations.index');
+        Route::post('/me/locations', [SavedLocationController::class, 'store'])->name('me.locations.store');
+        Route::patch('/me/locations/{locationPublicId}', [SavedLocationController::class, 'update'])->name('me.locations.update');
+        Route::delete('/me/locations/{locationPublicId}', [SavedLocationController::class, 'destroy'])->name('me.locations.destroy');
     });
 
     // Shared document download — access is permission/ownership-checked

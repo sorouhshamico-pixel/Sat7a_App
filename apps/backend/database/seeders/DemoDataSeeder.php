@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Domain\Authorization\Enums\RoleName;
 use App\Domain\Authorization\Models\Role;
+use App\Domain\Customers\Models\Customer;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -26,10 +27,16 @@ class DemoDataSeeder extends Seeder
             $superAdmin->roles()->syncWithoutDetaching([$superAdminRole->id]);
         }
 
-        User::factory()->customer()->create([
+        $demoCustomer = User::factory()->customer()->create([
             'name' => 'Demo Customer',
             'phone' => '+966500000001',
         ]);
+
+        $customerProfile = new Customer([
+            'notification_preferences' => Customer::defaultNotificationPreferences(),
+        ]);
+        $customerProfile->user_id = $demoCustomer->id;
+        $customerProfile->save();
 
         $this->command->info('Demo super admin: demo-admin@example.test / password (MFA setup required on first login)');
     }

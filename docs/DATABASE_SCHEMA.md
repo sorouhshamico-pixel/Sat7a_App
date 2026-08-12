@@ -24,6 +24,15 @@ stay in sync with `apps/backend/database/migrations/`.
   `service_capabilities` (JSON array), `status` (state machine, see
   `App\Domain\Fleet\Enums\TowTruckStatus`), `current_latitude`/`current_longitude`/
   `last_location_at` (plain decimals for now — see §Geography below) (Phase 4).
+- `customers` — `user_id` (unique), `avatar_path`, `preferences`, `notification_preferences`
+  (JSON); name/phone/email/locale/status/registration date already live on `users`, not
+  duplicated here (Phase 5).
+- `vehicles` — `customer_id`, make/model/year/type/color/plate_number/notes/image_path; `type`
+  is free-text, not a fixed enum (Phase 5).
+- `saved_locations` — `customer_id`, `label` (home/work/custom), plain lat/lng (see §Geography),
+  `formatted_address`; a partial unique index enforces at most one `home` and one `work` per
+  customer — `custom` is unlimited. No location *history* — only the current point per label
+  (Phase 5).
 
 ## Engine
 

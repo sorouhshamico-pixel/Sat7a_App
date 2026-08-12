@@ -38,6 +38,7 @@ This copies the PostGIS 3.6.2 bundle files into the PostgreSQL 17 install direct
 cd apps/backend
 composer install
 php artisan migrate
+php artisan storage:link   # public disk (avatars, vehicle photos) — see docs/SECURITY.md §File uploads
 php artisan serve          # http://localhost:8000
 php artisan queue:work     # background jobs (see Horizon note below)
 php artisan reverb:start   # websocket server

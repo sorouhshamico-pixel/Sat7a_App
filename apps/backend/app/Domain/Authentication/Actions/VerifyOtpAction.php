@@ -4,6 +4,7 @@ namespace App\Domain\Authentication\Actions;
 
 use App\Domain\Authentication\Exceptions\OtpVerificationException;
 use App\Domain\Authentication\Models\OtpCode;
+use App\Domain\Customers\Models\Customer;
 use App\Domain\Users\Enums\UserStatus;
 use App\Domain\Users\Enums\UserType;
 use App\Models\User;
@@ -67,6 +68,12 @@ class VerifyOtpAction
                     'user_type' => UserType::Customer->value,
                     'status' => UserStatus::Active->value,
                 ]);
+
+                $customer = new Customer([
+                    'notification_preferences' => Customer::defaultNotificationPreferences(),
+                ]);
+                $customer->user_id = $user->id;
+                $customer->save();
             }
 
             if ($user->status === UserStatus::Suspended) {
