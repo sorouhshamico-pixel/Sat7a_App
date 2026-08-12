@@ -95,8 +95,8 @@ super-admin action is exempt from this.
 | OTP send | 5 / hour |
 | OTP verify | 5 attempts |
 | Login | 10 / 15 min |
-| Order create | 5 / 10 min |
-| Public estimate | rate limited (exact figure set in Phase 8) |
+| Order create | 5 / 10 min — implemented, Phase 8 |
+| Public estimate | 20 / min per user or IP — implemented, Phase 7 (`/pricing/quote`) |
 | Maps (geocode/places/route) | 30 / min per user or IP — implemented, Phase 6 |
 | Pricing quote | 20 / min per user or IP — implemented, Phase 7 |
 | Admin login | strict, tighter than customer login |

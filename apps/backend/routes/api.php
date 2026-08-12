@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\Admin\DocumentVerificationController;
 use App\Http\Controllers\Api\V1\Admin\DriverController as AdminDriverController;
+use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\PricingController as AdminPricingController;
 use App\Http\Controllers\Api\V1\Admin\ProviderController as AdminProviderController;
 use App\Http\Controllers\Api\V1\Admin\RoleController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Maps\CityController;
 use App\Http\Controllers\Api\V1\Maps\MapsController;
+use App\Http\Controllers\Api\V1\Orders\OrderController;
 use App\Http\Controllers\Api\V1\Pricing\QuoteController;
 use App\Http\Controllers\Api\V1\Providers\ProviderController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDocumentController;
@@ -132,6 +134,17 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/me/locations', [SavedLocationController::class, 'store'])->name('me.locations.store');
         Route::patch('/me/locations/{locationPublicId}', [SavedLocationController::class, 'update'])->name('me.locations.update');
         Route::delete('/me/locations/{locationPublicId}', [SavedLocationController::class, 'destroy'])->name('me.locations.destroy');
+
+        // Orders — always scoped to the caller's own customer profile via
+        // ResolvesCustomer, never a bare {order} parameter (see
+        // docs/ORDER_LIFECYCLE.md and docs/SECURITY.md).
+        Route::get('/me/orders', [OrderController::class, 'index'])->name('me.orders.index');
+        Route::post('/me/orders', [OrderController::class, 'store'])
+            ->middleware('throttle:order-create')
+            ->name('me.orders.store');
+        Route::get('/me/orders/{orderPublicId}', [OrderController::class, 'show'])->name('me.orders.show');
+        Route::get('/me/orders/{orderPublicId}/timeline', [OrderController::class, 'timeline'])->name('me.orders.timeline');
+        Route::post('/me/orders/{orderPublicId}/cancel', [OrderController::class, 'cancel'])->name('me.orders.cancel');
     });
 
     // Shared document download — access is permission/ownership-checked
@@ -207,5 +220,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/pricing/versions/{pricingRuleVersion}/activate', [AdminPricingController::class, 'activate'])
             ->middleware('can:pricing.update')
             ->name('pricing.versions.activate');
+
+        Route::middleware('can:orders.view_all')->group(function (): void {
+            Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
+            Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+        });
+        Route::post('/orders/{order}/cancel', [AdminOrderController::class, 'cancel'])
+            ->middleware('can:orders.cancel')
+            ->name('orders.cancel');
     });
 });

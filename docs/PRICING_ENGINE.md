@@ -4,8 +4,10 @@
 
 Implemented, Phase 7. `pricing_rule_versions` (`database/migrations/2026_08_12_103112_*`),
 `App\Domain\Pricing\Models\PricingRuleVersion`, `App\Domain\Pricing\Actions\GenerateQuoteAction`.
-Orders (Phase 8) will store the `PricingSnapshot` this produces verbatim; Dispatch (Phase 9)
-will pass in the distance/service-type/vehicle-category once an order exists.
+Orders (Phase 8, implemented) store the `PricingSnapshot` this produces verbatim via
+`App\Domain\Orders\Actions\CreateOrderAction` — see `docs/ORDER_LIFECYCLE.md`. Dispatch
+(Phase 9) will pass in the distance/service-type/vehicle-category for re-quoting scenarios once
+it exists.
 
 ## Components (implemented)
 
@@ -45,18 +47,19 @@ total = taxable_amount + (taxable_amount * vat_percentage)
   activation (`App\Domain\Pricing\Actions\ActivatePricingRuleVersionAction`) is a separate,
   audited step, so a draft rate card can be reviewed before going live.
 - `GenerateQuoteAction` returns a `PricingSnapshot` — the exact rule-version id/label, distance,
-  every fee component, discount, tax, and total used at quote time. Orders (Phase 8) will store
-  this verbatim, so historical orders never change when pricing rules change later (see
-  `docs/DATABASE_SCHEMA.md` §Immutability).
+  every fee component, discount, tax, and total used at quote time. Orders (Phase 8, implemented)
+  store this verbatim on `orders.pricing_snapshot`, so historical orders never change when
+  pricing rules change later (see `docs/DATABASE_SCHEMA.md` §Immutability).
 - Price types: `fixed_quote` (implemented), `manual_quote` (implemented — a
   `requires_manual_quote` flag on the quote request skips the calculator entirely and returns no
   computed price), `estimated_range` (not implemented — not needed yet; `fixed_quote` covers the
   MVP per spec §47).
 - Manual quote situations (severely damaged vehicle, no wheels, underground parking, recovery
   operations, unusual vehicle, special loading) are flagged by the caller (customer/UI), not
-  detected automatically — there's no vehicle-damage classifier. Order *execution* being blocked
-  until the customer accepts a manually-set price is an Order-domain rule for Phase 8, not
-  something the pricing engine itself enforces (it has no concept of an order yet).
+  detected automatically — there's no vehicle-damage classifier. Order *creation* rejecting a
+  `requires_manual_quote` request outright (`MANUAL_QUOTE_REQUIRED`, no staff-quote workflow yet)
+  is an Order-domain rule implemented in Phase 8, not something the pricing engine itself
+  enforces (it has no concept of an order).
 - Money is integer minor units (halalas), never float (see `docs/DATABASE_SCHEMA.md`).
 - VAT/tax logic is a configurable percentage on the rate-card version, not hardcoded into UI
   strings — the actual rate/rules require legal/tax review before production (see
@@ -72,5 +75,6 @@ total = taxable_amount + (taxable_amount * vat_percentage)
 logging in, per `docs/PRODUCT_REQUIREMENTS.md`), rate-limited (`docs/SECURITY.md` §Rate
 limiting). Accepts `distance_meters`, `service_type`, `vehicle_category`, optional
 `waiting_minutes`, optional `requires_manual_quote`. Distance is a pre-computed input — Pricing
-stays decoupled from Maps; Order creation (Phase 8) is what will call the Maps routing endpoint
-first and pass the resulting distance in here.
+stays decoupled from Maps. Order creation (`POST /api/v1/customers/me/orders`, Phase 8,
+implemented) calls the Maps `RoutingProvider` internally and passes the resulting distance into
+`GenerateQuoteAction` directly (not through this HTTP endpoint) — see `docs/ORDER_LIFECYCLE.md`.

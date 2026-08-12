@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 7: authentication, admin role-management, provider onboarding/compliance, fleet/driver
-management, customer profile/vehicle/saved-location, maps/cities, and pricing endpoints exist
-(listed below). The actual OpenAPI 3.x document will live at
+Phase 8: authentication, admin role-management, provider onboarding/compliance, fleet/driver
+management, customer profile/vehicle/saved-location, maps/cities, pricing, and order endpoints
+exist (listed below). The actual OpenAPI 3.x document will live at
 `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
 stabilizes further; for now this file is the source of truth and must stay in sync with the real
 routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
@@ -72,6 +72,14 @@ exist yet.
 | GET | `/api/v1/admin/pricing/versions` | token ability `*` + permission `pricing.view` | Lists all rate-card versions |
 | POST | `/api/v1/admin/pricing/versions` | token ability `*` + permission `pricing.update` | Creates a new (inactive) version (audited) |
 | POST | `/api/v1/admin/pricing/versions/{pricingRuleVersion}/activate` | token ability `*` + permission `pricing.update` | Activates a version, deactivating the previous one (audited) |
+| POST | `/api/v1/customers/me/orders` | token ability `*` (rate-limited: `order-create`) | Creates an order; price/distance always server-recomputed, never trusted from the client |
+| GET | `/api/v1/customers/me/orders` | token ability `*` | Paginated order history for the caller's own customer profile |
+| GET | `/api/v1/customers/me/orders/{orderPublicId}` | token ability `*` | Owner-scoped order detail |
+| GET | `/api/v1/customers/me/orders/{orderPublicId}/timeline` | token ability `*` | Owner-scoped status-change history |
+| POST | `/api/v1/customers/me/orders/{orderPublicId}/cancel` | token ability `*` | Customer self-cancellation (only from `pending`–`vehicle_loading`) |
+| GET | `/api/v1/admin/orders` | token ability `*` + permission `orders.view_all` | Lists/filters all orders by status |
+| GET | `/api/v1/admin/orders/{order}` | token ability `*` + permission `orders.view_all` | Order detail, any customer |
+| POST | `/api/v1/admin/orders/{order}/cancel` | token ability `*` + permission `orders.cancel` | Platform-side cancellation, any order (audited via the state-machine history row) |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

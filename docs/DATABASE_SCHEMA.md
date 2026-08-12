@@ -49,6 +49,18 @@ half-verified — see `docs/ROADMAP.md` Phase 6.
   minutes, zone fee (reserved, 0 for now), platform service fee %, VAT %), plus `is_active`
   (exactly one at a time), `effective_from`, `created_by`, `notes`. See
   `docs/PRICING_ENGINE.md` (Phase 7).
+- `orders` — `customer_id`, `vehicle_id`, `service_type`, pickup/dropoff lat+lng+formatted
+  address (plain decimals, not yet PostGIS — see §Geography below), `status` (state machine, see
+  `App\Domain\Orders\Enums\OrderStatus`), `pricing_snapshot` (JSON, frozen `PricingSnapshot` from
+  Phase 7), `quoted_price`, `final_price` (nullable, reserved for Phase 12), `payment_method`
+  (always `cash` for now), `assigned_provider_id`/`assigned_driver_id`/`assigned_tow_truck_id`
+  (nullable, reserved for Phase 9), `cancelled_by`/`cancellation_reason`/`cancellation_fee`, and
+  a set of nullable lifecycle timestamps (`accepted_at`, `arrived_at`, `trip_started_at`,
+  `completed_at`, `cancelled_at`) (Phase 8).
+- `order_status_history` — append-only; `order_id`, `from_status` (nullable — null on the
+  creation row), `to_status`, `changed_by` (nullable — null for system-driven transitions),
+  `notes`, `created_at`. Written only by `App\Domain\Orders\Services\OrderStateMachine`, never
+  directly. See `docs/ORDER_LIFECYCLE.md` (Phase 8).
 
 ## Engine
 

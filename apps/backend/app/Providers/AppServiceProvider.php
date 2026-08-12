@@ -2,8 +2,12 @@
 
 namespace App\Providers;
 
+use App\Domain\Orders\Events\OrderCancelled;
+use App\Domain\Orders\Events\OrderCreated;
+use App\Domain\Orders\Listeners\LogOrderLifecycleListener;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -63,5 +67,14 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('quote', function (Request $request) {
             return Limit::perMinute(20)->by($request->user()?->id ?: $request->ip());
         });
+
+        // Order creation — deliberately stricter than the general API
+        // limit (see docs/SECURITY.md §Rate limiting baseline).
+        RateLimiter::for('order-create', function (Request $request) {
+            return Limit::perMinutes(10, 5)->by($request->user()?->id ?: $request->ip());
+        });
+
+        Event::listen(OrderCreated::class, [LogOrderLifecycleListener::class, 'handleCreated']);
+        Event::listen(OrderCancelled::class, [LogOrderLifecycleListener::class, 'handleCancelled']);
     }
 }

@@ -122,6 +122,18 @@ parameter. Platform-side suspension (`/api/v1/admin/drivers/{driver}/suspend`,
 critical, platform-wide change stays tightly held, unlike view access. Both actions the update
 permission gates are audited via `App\Domain\Audit\Services\AuditLogger`.
 
+## Orders (implemented, Phase 8)
+
+`orders.view_all` (list/view any order) and `orders.cancel` (platform-side cancellation of any
+order) were seeded back in Phase 2 and are now actually enforced on `/api/v1/admin/orders/...`
+(see `docs/ORDER_LIFECYCLE.md`) — granted to `dispatcher`/`customer_support`/`operations_manager`
+per the existing catalog, with only `operations_manager` (plus `admin`/`super_admin`) also
+holding `orders.cancel`, so a dispatcher or support agent can see orders but not cancel them.
+Customer-side order access (a customer only ever seeing their own orders) is not part of this
+RBAC layer at all — customers have no roles — it's enforced structurally by
+`App\Http\Controllers\Concerns\ResolvesCustomer` plus scoping every lookup through the caller's
+own `orders()` relation, the same pattern already used for vehicles/saved-locations.
+
 ## Audit logging (implemented)
 
 `App\Domain\Audit\Services\AuditLogger` writes an immutable `audit_logs` row

@@ -34,4 +34,8 @@ enum ErrorCode: string
 
     case PricingUnavailable = 'PRICING_UNAVAILABLE';
     case ManualQuoteRequired = 'MANUAL_QUOTE_REQUIRED';
+
+    case OrderInvalidTransition = 'ORDER_INVALID_TRANSITION';
+    case OrderNotCancellable = 'ORDER_NOT_CANCELLABLE';
+    case VehicleNotFound = 'VEHICLE_NOT_FOUND';
 }

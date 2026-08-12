@@ -16,8 +16,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 4 | Fleet & Drivers | Done |
 | 5 | Customer Profiles & Vehicles | Done |
 | 6 | Maps & Location Foundation | Partially done — see notes |
-| 7 | Pricing Engine | **In progress** |
-| 8 | Orders | Not started |
+| 7 | Pricing Engine | Done |
+| 8 | Orders | **Done** |
 | 9 | Dispatch & Matching | Not started |
 | 10 | Realtime | Not started |
 | 11 | Live Location Tracking | Not started |
@@ -227,6 +227,30 @@ adding a coupon system later doesn't change the snapshot shape); zone-based pric
 `zone_fee` column exists and is always 0 — depends on Phase 6's deferred PostGIS service zones);
 VAT rate/rules need legal/tax review before production (see docs/COMPLIANCE.md) — the 15%
 default is Saudi Arabia's standard rate but is not asserted here as legally reviewed.
+
+## Phase 8 — Orders (this phase)
+
+Implemented: `orders` and `order_status_history` tables, a real state machine
+(`App\Domain\Orders\Enums\OrderStatus`) covering the full booking → trip → cancellation/refund
+lifecycle, and `App\Domain\Orders\Services\OrderStateMachine` as the single place every status
+change goes through — validated against the matrix and recorded atomically in the same DB
+transaction as the status update. `App\Domain\Orders\Actions\CreateOrderAction` never trusts a
+client-supplied price or distance: it always recomputes the route via the Phase 6 `RoutingProvider`
+and the price via the Phase 7 `GenerateQuoteAction`, storing the resulting `PricingSnapshot`
+verbatim. Customer-facing endpoints (`/api/v1/customers/me/orders/...`) follow the same
+`ResolvesCustomer`-scoped, no-bare-route-parameter pattern as Phase 5's vehicles/saved-locations;
+admin endpoints (`/api/v1/admin/orders`) reuse the already-seeded `orders.view_all`/`orders.cancel`
+permissions from Phase 2. Domain events (`OrderCreated`, `OrderCancelled`) are dispatched by the
+actions and logged structurally by `App\Domain\Orders\Listeners\LogOrderLifecycleListener`,
+standing in for real notifications until Phase 16. See `docs/ORDER_LIFECYCLE.md` for the full
+state diagram and rules.
+
+Not yet in this phase: dispatch/matching — an order sits in `pending` with no automated
+transition out of it until Phase 9 exists; payments — `payment_method` is always `cash` and
+`final_price` is always `null` until Phase 12; a manual-quote order workflow — a
+`requires_manual_quote` order is rejected at creation with `MANUAL_QUOTE_REQUIRED` rather than
+routed to a staff queue that doesn't exist yet; order photo upload — noted as a reasonable
+near-term follow-up but out of this phase's core scope.
 
 ## Definition of Done for every phase
 
