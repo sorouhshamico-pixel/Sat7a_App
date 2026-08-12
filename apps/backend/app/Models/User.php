@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Authorization\Concerns\HasRoles;
 use App\Domain\Users\Enums\UserStatus;
 use App\Domain\Users\Enums\UserType;
 use App\Support\Concerns\HasUlid;
@@ -29,7 +30,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasUlid, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, HasUlid, Notifiable;
 
     /**
      * @return array<string, string>

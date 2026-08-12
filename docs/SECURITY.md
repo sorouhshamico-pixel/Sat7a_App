@@ -2,10 +2,11 @@
 
 ## Status
 
-Phase 1: authentication, OTP, sessions, and admin MFA are implemented (see below) — everything
-else in this document past that section is still design/Phase 0 baseline. A dedicated Phase 23
-security-hardening audit happens before production readiness. This document is updated as each
-control is implemented — it is not a promise of controls that don't exist yet.
+Phase 1: authentication, OTP, sessions, and admin MFA are implemented. Phase 2: RBAC and audit
+logging are implemented (see below in each case) — everything else in this document is still
+design/Phase 0 baseline. A dedicated Phase 23 security-hardening audit happens before production
+readiness. This document is updated as each control is implemented — it is not a promise of
+controls that don't exist yet.
 
 ## Threat model reference (OWASP)
 
@@ -69,6 +70,23 @@ session, or revoke all others. A user can only ever act on their own tokens — 
 cross-user session lookup. "Rotate session identifiers on authentication" doesn't apply the way
 it would to cookie sessions: every OTP/MFA success issues a brand-new token rather than reusing
 one.
+
+## Authorization & RBAC (implemented, Phase 2)
+
+Fine-grained permissions (`App\Domain\Authorization\Enums\PermissionName`) bundled into roles
+(`App\Domain\Authorization\Enums\RoleName`), never a raw role-string check in application code.
+See `docs/ROLES_PERMISSIONS.md` for the full catalog and mapping. Role assignment/revocation is
+itself gated behind the `roles.manage` permission (granted only to `super_admin`) and always
+audited.
+
+## Audit logging (implemented, Phase 2)
+
+`App\Domain\Audit\Services\AuditLogger` writes an immutable row to `audit_logs`
+(`App\Domain\Audit\Models\AuditLog`) — actor, action, entity type/id, old/new values, reason, IP,
+user agent — for every audited action. Currently wired into role assignment/revocation; extended
+as later phases add their own sensitive actions (see docs/ROLES_PERMISSIONS.md §Audited actions
+list). Rows are never updated or deleted by application code — a correction is a new row. No
+super-admin action is exempt from this.
 
 ## Rate limiting baseline (tunable, implemented per-endpoint as each lands)
 

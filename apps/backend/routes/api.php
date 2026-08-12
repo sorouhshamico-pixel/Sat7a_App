@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\RoleController;
+use App\Http\Controllers\Api\V1\Admin\UserRoleController;
 use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
 use App\Http\Controllers\Api\V1\Auth\SessionController;
@@ -56,6 +58,20 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 ->whereNumber('tokenId')
                 ->name('sessions.destroy');
             Route::post('/sessions/revoke-all', [SessionController::class, 'destroyAll'])->name('sessions.revoke-all');
+        });
+    });
+
+    // Admin/platform management. Fully-privileged token required, plus the
+    // specific permission for each action (see docs/ROLES_PERMISSIONS.md).
+    // Role changes are audited without exception — see
+    // App\Domain\Authorization\Actions\AssignRoleAction/RevokeRoleAction.
+    Route::prefix('admin')->name('admin.')->middleware(['auth:sanctum', 'abilities:*'])->group(function (): void {
+        Route::middleware('can:roles.manage')->group(function (): void {
+            Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
+
+            Route::get('/users/{user}/roles', [UserRoleController::class, 'index'])->name('users.roles.index');
+            Route::post('/users/{user}/roles', [UserRoleController::class, 'store'])->name('users.roles.store');
+            Route::delete('/users/{user}/roles/{roleName}', [UserRoleController::class, 'destroy'])->name('users.roles.destroy');
         });
     });
 });

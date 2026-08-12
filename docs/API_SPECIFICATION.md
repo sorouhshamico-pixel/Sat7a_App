@@ -2,13 +2,13 @@
 
 ## Status
 
-Phase 1: authentication endpoints exist (listed below). The actual OpenAPI 3.x document will
-live at `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint
-surface stabilizes further; for now this file is the source of truth and must stay in sync with
-the real routes in `apps/backend/routes/api.php` — never a description of an intended API that
-doesn't exist yet.
+Phase 2: authentication and admin role-management endpoints exist (listed below). The actual
+OpenAPI 3.x document will live at `packages/api-contracts/openapi.yaml`,
+generated/maintained starting once the endpoint surface stabilizes further; for now this file is
+the source of truth and must stay in sync with the real routes in `apps/backend/routes/api.php`
+— never a description of an intended API that doesn't exist yet.
 
-## Implemented endpoints (Phase 1)
+## Implemented endpoints
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
@@ -22,6 +22,10 @@ doesn't exist yet.
 | GET | `/api/v1/auth/sessions` | token ability `*` | Lists the caller's own active tokens |
 | DELETE | `/api/v1/auth/sessions/{tokenId}` | token ability `*` | Revokes one of the caller's own tokens |
 | POST | `/api/v1/auth/sessions/revoke-all` | token ability `*` | Revokes all of the caller's tokens except the current one |
+| GET | `/api/v1/admin/roles` | token ability `*` + permission `roles.manage` | Lists the full role catalog with permissions |
+| GET | `/api/v1/admin/users/{user}/roles` | token ability `*` + permission `roles.manage` | Lists a user's assigned roles |
+| POST | `/api/v1/admin/users/{user}/roles` | token ability `*` + permission `roles.manage` | Assigns a role to a user (audited) |
+| DELETE | `/api/v1/admin/users/{user}/roles/{roleName}` | token ability `*` + permission `roles.manage` | Revokes a role from a user (audited) |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

@@ -10,8 +10,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | Phase | Name | Status |
 |---|---|---|
 | 0 | Architecture & Foundation | Done |
-| 1 | Authentication & Security Foundation | **In progress** |
-| 2 | Roles & Permissions | Not started |
+| 1 | Authentication & Security Foundation | Done |
+| 2 | Roles & Permissions | **In progress** |
 | 3 | Provider Onboarding | Not started |
 | 4 | Fleet & Drivers | Not started |
 | 5 | Customer Profiles & Vehicles | Not started |
@@ -68,14 +68,29 @@ limit, unexpected — comes back in the standard shape with a stable `ErrorCode`
 security headers, and named rate limiters for OTP send/verify and admin login (see
 `docs/SECURITY.md` and `docs/API_SPECIFICATION.md` for details).
 
-Not yet in this phase: roles/permissions enforcement beyond "is this the right user type"
-(that's Phase 2), provider-staff account provisioning (Phase 3/4 — for now, provider-staff OTP
-login only works for accounts seeded directly, since there's no onboarding flow yet).
+Not yet in this phase: roles/permissions enforcement (that's Phase 2), provider-staff account
+provisioning (Phase 3/4 — for now, provider-staff OTP login only works for accounts seeded
+directly, since there's no onboarding flow yet).
 
 Testing note: the test suite runs against a real local PostgreSQL database
 (`tow_platform_testing`), not SQLite, because migrations use Postgres-specific syntax (CHECK
 constraints now, PostGIS geography columns from Phase 6 on) that SQLite can't run. CI
 provisions the same database as a service container.
+
+## Phase 2 — Roles & Permissions (this phase)
+
+Implemented: `roles`/`permissions`/`permission_role`/`role_user` tables, seeded via
+`database/seeders/RolePermissionSeeder.php`, a `Gate::before` hook
+(`app/Providers/AuthorizationServiceProvider.php`) that turns every permission slug into a
+usable Laravel authorization ability, admin role-management endpoints (list roles, assign/revoke
+a user's role) gated by the `roles.manage` permission, an immutable audit log
+(`App\Domain\Audit\Services\AuditLogger`) wired into role assignment/revocation, and an
+`admin:create-super-admin` artisan command to bootstrap the first admin account (there's no
+public admin registration endpoint). See `docs/ROLES_PERMISSIONS.md` for the full catalog.
+
+Not yet in this phase: provider-scoped role enforcement (a fleet manager restricted to *their*
+provider) — that needs the Provider domain from Phase 3/4; Policy classes for domain models,
+since no domain models with ownership exist yet beyond User/Role/Permission themselves.
 
 ## Definition of Done for every phase
 
