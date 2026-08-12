@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 // See docs/COMPLIANCE.md §Expiry.
 Schedule::command('compliance:check-document-expiry')->dailyAt('02:00');
+
+// See docs/DISPATCH_ENGINE.md §Dispatch waves.
+Schedule::command('dispatch:escalate-stale-offers')->everyMinute();

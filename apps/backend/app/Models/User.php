@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Domain\Authorization\Concerns\HasRoles;
 use App\Domain\Customers\Models\Customer;
+use App\Domain\Drivers\Models\Driver;
 use App\Domain\Providers\Models\Provider;
 use App\Domain\Users\Enums\UserStatus;
 use App\Domain\Users\Enums\UserType;
@@ -55,6 +56,14 @@ class User extends Authenticatable
     public function customer(): HasOne
     {
         return $this->hasOne(Customer::class);
+    }
+
+    /**
+     * @return HasOne<Driver, $this>
+     */
+    public function driver(): HasOne
+    {
+        return $this->hasOne(Driver::class);
     }
 
     /**

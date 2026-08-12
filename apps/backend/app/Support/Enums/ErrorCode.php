@@ -38,4 +38,8 @@ enum ErrorCode: string
     case OrderInvalidTransition = 'ORDER_INVALID_TRANSITION';
     case OrderNotCancellable = 'ORDER_NOT_CANCELLABLE';
     case VehicleNotFound = 'VEHICLE_NOT_FOUND';
+
+    case OrderNotDispatchable = 'ORDER_NOT_DISPATCHABLE';
+    case DispatchOfferNoLongerAvailable = 'DISPATCH_OFFER_NO_LONGER_AVAILABLE';
+    case TowTruckNotEligible = 'TOW_TRUCK_NOT_ELIGIBLE';
 }

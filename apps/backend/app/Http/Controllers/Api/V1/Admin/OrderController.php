@@ -38,7 +38,9 @@ class OrderController extends Controller
 
     public function show(Order $order): JsonResponse
     {
-        return ApiResponse::success(['order' => new OrderResource($order->load('vehicle'))]);
+        $order->load(['vehicle', 'assignedProvider', 'assignedDriver.user', 'assignedTowTruck']);
+
+        return ApiResponse::success(['order' => new OrderResource($order)]);
     }
 
     public function cancel(ReasonRequest $request, Order $order, CancelOrderAction $action): JsonResponse

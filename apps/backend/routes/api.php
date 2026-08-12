@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\DispatchController as AdminDispatchController;
 use App\Http\Controllers\Api\V1\Admin\DocumentVerificationController;
 use App\Http\Controllers\Api\V1\Admin\DriverController as AdminDriverController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Api\V1\Customers\CustomerController;
 use App\Http\Controllers\Api\V1\Customers\SavedLocationController;
 use App\Http\Controllers\Api\V1\Customers\VehicleController;
 use App\Http\Controllers\Api\V1\DocumentController;
+use App\Http\Controllers\Api\V1\Drivers\DispatchOfferController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Maps\CityController;
 use App\Http\Controllers\Api\V1\Maps\MapsController;
@@ -115,6 +117,18 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->name('me.fleet.status');
             });
         });
+    });
+
+    // Driver self-service — always scoped to the caller's own driver
+    // profile via ResolvesDriver, never a bare {driver} parameter (see
+    // docs/DISPATCH_ENGINE.md). No extra permission gate: ownership of the
+    // offer is the only boundary, same shape as customers/me/... below.
+    Route::prefix('drivers')->name('drivers.')->middleware(['auth:sanctum', 'abilities:*'])->group(function (): void {
+        Route::get('/me/dispatch-offers', [DispatchOfferController::class, 'index'])->name('me.dispatch-offers.index');
+        Route::post('/me/dispatch-offers/{offerPublicId}/accept', [DispatchOfferController::class, 'accept'])
+            ->name('me.dispatch-offers.accept');
+        Route::post('/me/dispatch-offers/{offerPublicId}/reject', [DispatchOfferController::class, 'reject'])
+            ->name('me.dispatch-offers.reject');
     });
 
     // Customer self-service — always scoped to the caller's own profile;
@@ -224,9 +238,18 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::middleware('can:orders.view_all')->group(function (): void {
             Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
             Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+            Route::get('/orders/{order}/dispatch-offers', [AdminDispatchController::class, 'offers'])->name('orders.dispatch-offers');
         });
         Route::post('/orders/{order}/cancel', [AdminOrderController::class, 'cancel'])
             ->middleware('can:orders.cancel')
             ->name('orders.cancel');
+
+        // Operations dispatch override — see docs/DISPATCH_ENGINE.md
+        // §Manual fallback. Reuses `orders.assign`, already seeded to
+        // dispatcher/operations_manager in Phase 2.
+        Route::middleware('can:orders.assign')->group(function (): void {
+            Route::post('/orders/{order}/dispatch/retry', [AdminDispatchController::class, 'retry'])->name('orders.dispatch.retry');
+            Route::post('/orders/{order}/dispatch/assign', [AdminDispatchController::class, 'assign'])->name('orders.dispatch.assign');
+        });
     });
 });

@@ -84,7 +84,7 @@ class OrderController extends Controller
     {
         $order = $this->resolveCustomer($request)->orders()
             ->where('public_id', $orderPublicId)
-            ->with('vehicle')
+            ->with(['vehicle', 'assignedProvider', 'assignedDriver.user', 'assignedTowTruck'])
             ->first();
 
         if ($order === null) {

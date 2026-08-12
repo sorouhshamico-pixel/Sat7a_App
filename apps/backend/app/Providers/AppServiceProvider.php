@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Domain\Dispatch\Listeners\StartDispatchListener;
 use App\Domain\Orders\Events\OrderCancelled;
 use App\Domain\Orders\Events\OrderCreated;
 use App\Domain\Orders\Listeners\LogOrderLifecycleListener;
@@ -76,5 +77,6 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(OrderCreated::class, [LogOrderLifecycleListener::class, 'handleCreated']);
         Event::listen(OrderCancelled::class, [LogOrderLifecycleListener::class, 'handleCancelled']);
+        Event::listen(OrderCreated::class, StartDispatchListener::class);
     }
 }

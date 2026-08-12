@@ -3,7 +3,6 @@
 namespace App\Domain\Fleet\Models;
 
 use App\Domain\Drivers\Models\Driver;
-use App\Domain\Fleet\Enums\ServiceCapability;
 use App\Domain\Fleet\Enums\TowTruckStatus;
 use App\Domain\Providers\Models\Provider;
 use App\Support\Concerns\HasUlid;
@@ -14,7 +13,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * @property TowTruckStatus $status
- * @property list<ServiceCapability> $service_capabilities
+ * @property list<string> $service_capabilities Raw App\Domain\Fleet\Enums\ServiceCapability values — the
+ *                                              `array` cast doesn't hydrate enum instances, so callers compare against `ServiceCapability::value`.
  * @property Carbon|null $last_location_at
  */
 #[Fillable(['driver_id', 'manufacturer', 'model', 'year', 'plate_number', 'capacity', 'service_capabilities', 'status', 'current_latitude', 'current_longitude', 'last_location_at'])]

@@ -3,6 +3,7 @@
 namespace App\Domain\Drivers\Models;
 
 use App\Domain\Compliance\Models\Document;
+use App\Domain\Dispatch\Models\DispatchOffer;
 use App\Domain\Drivers\Enums\DriverStatus;
 use App\Domain\Fleet\Models\TowTruck;
 use App\Domain\Providers\Models\Provider;
@@ -11,6 +12,7 @@ use App\Support\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
@@ -66,5 +68,13 @@ class Driver extends Model
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /**
+     * @return HasMany<DispatchOffer, $this>
+     */
+    public function dispatchOffers(): HasMany
+    {
+        return $this->hasMany(DispatchOffer::class);
     }
 }

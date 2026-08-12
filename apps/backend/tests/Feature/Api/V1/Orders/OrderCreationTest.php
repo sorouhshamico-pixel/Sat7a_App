@@ -86,13 +86,21 @@ class OrderCreationTest extends TestCase
         $response = $this->withToken($token)->postJson('/api/v1/customers/me/orders', $this->orderPayload($vehicleId));
 
         $response->assertCreated();
-        $response->assertJsonPath('data.order.status', 'pending');
+        // Dispatch (Phase 9) auto-runs right after creation — with no
+        // eligible trucks in this test, it lands on searching_provider
+        // with manual_dispatch_required flagged (see
+        // docs/DISPATCH_ENGINE.md and tests/Feature/Api/V1/Dispatch/).
+        $response->assertJsonPath('data.order.status', 'searching_provider');
         $this->assertGreaterThan(0, $response->json('data.order.quoted_price'));
         $this->assertSame('cash', $response->json('data.order.payment_method'));
 
         $this->assertDatabaseHas('order_status_history', [
             'to_status' => 'pending',
             'from_status' => null,
+        ]);
+        $this->assertDatabaseHas('order_status_history', [
+            'to_status' => 'searching_provider',
+            'from_status' => 'pending',
         ]);
     }
 

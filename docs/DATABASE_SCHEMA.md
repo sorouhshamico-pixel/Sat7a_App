@@ -42,7 +42,10 @@ setup): `service_zones` (city-scoped, center point + radius rather than a precis
 no real boundary data exists to use), and a `location geography(Point,4326)` column on
 `tow_trucks` for the nearby-search query. Both were written and confirmed to fail against this
 database (`type "geography" does not exist`) and were deliberately held back rather than shipped
-half-verified — see `docs/ROADMAP.md` Phase 6.
+half-verified — see `docs/ROADMAP.md` Phase 6. Unlike `service_zones`, the nearby-search query
+itself couldn't wait for PostGIS — Phase 9 (Dispatch) ships it via a documented temporary
+Haversine query against `tow_trucks.current_latitude`/`current_longitude` instead; see
+`docs/DISPATCH_ENGINE.md` for why and how it gets swapped out later.
 
 - `pricing_rule_versions` — every pricing component (base fee, minimum fare, per-km rate,
   per-service-type fee, per-vehicle-category multiplier, night fee + window, waiting fee + free
@@ -61,6 +64,14 @@ half-verified — see `docs/ROADMAP.md` Phase 6.
   creation row), `to_status`, `changed_by` (nullable — null for system-driven transitions),
   `notes`, `created_at`. Written only by `App\Domain\Orders\Services\OrderStateMachine`, never
   directly. See `docs/ORDER_LIFECYCLE.md` (Phase 8).
+- `orders.current_dispatch_wave`/`orders.manual_dispatch_required` — added in Phase 9; which
+  dispatch wave last actually produced offers, and whether every configured wave was exhausted
+  with no acceptance (see `docs/DISPATCH_ENGINE.md`).
+- `dispatch_offers` — one row per candidate a dispatch wave offered an order to: `order_id`,
+  `tow_truck_id`, `driver_id`, `provider_id`, `wave`, `distance_meters` (snapshot at offer time),
+  `status` (state machine, see `App\Domain\Dispatch\Enums\DispatchOfferStatus`), `expires_at`,
+  `responded_at`. Never mutated except `status`/`responded_at` on response — the offer history is
+  the audit trail of who was asked and how they responded (Phase 9).
 
 ## Engine
 

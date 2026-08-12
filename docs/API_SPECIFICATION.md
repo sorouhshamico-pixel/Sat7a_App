@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 8: authentication, admin role-management, provider onboarding/compliance, fleet/driver
-management, customer profile/vehicle/saved-location, maps/cities, pricing, and order endpoints
-exist (listed below). The actual OpenAPI 3.x document will live at
+Phase 9: authentication, admin role-management, provider onboarding/compliance, fleet/driver
+management, customer profile/vehicle/saved-location, maps/cities, pricing, order, and dispatch
+endpoints exist (listed below). The actual OpenAPI 3.x document will live at
 `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
 stabilizes further; for now this file is the source of truth and must stay in sync with the real
 routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
@@ -80,6 +80,12 @@ exist yet.
 | GET | `/api/v1/admin/orders` | token ability `*` + permission `orders.view_all` | Lists/filters all orders by status |
 | GET | `/api/v1/admin/orders/{order}` | token ability `*` + permission `orders.view_all` | Order detail, any customer |
 | POST | `/api/v1/admin/orders/{order}/cancel` | token ability `*` + permission `orders.cancel` | Platform-side cancellation, any order (audited via the state-machine history row) |
+| GET | `/api/v1/drivers/me/dispatch-offers` | token ability `*` | Pending, unexpired dispatch offers for the caller's own driver profile |
+| POST | `/api/v1/drivers/me/dispatch-offers/{offerPublicId}/accept` | token ability `*` | Accepts an offer (concurrency-safe; assigns the order) |
+| POST | `/api/v1/drivers/me/dispatch-offers/{offerPublicId}/reject` | token ability `*` | Declines an offer; may immediately escalate to the next wave |
+| GET | `/api/v1/admin/orders/{order}/dispatch-offers` | token ability `*` + permission `orders.view_all` | Full offer history for an order |
+| POST | `/api/v1/admin/orders/{order}/dispatch/retry` | token ability `*` + permission `orders.assign` | Rescans from wave 1 for an order (e.g. after new trucks came online) |
+| POST | `/api/v1/admin/orders/{order}/dispatch/assign` | token ability `*` + permission `orders.assign` | Manually assigns a specific eligible tow truck (audited) |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

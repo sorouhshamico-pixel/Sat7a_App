@@ -32,8 +32,14 @@ This was a no-op deferral through Phases 0–5 — nothing needed it yet. As of 
 blocker: the `service_zones` table and the tow-truck `location` geography column (nearby-search)
 were written and confirmed to fail against this database with
 `SQLSTATE[42704]: type "geography" does not exist`, and were held back out of the Phase 6 commit
-rather than shipped unverified (see `docs/ROADMAP.md` Phase 6). Run the script above before
-picking those back up — likely in Phase 9 (Dispatch), the actual consumer of nearby-search.
+rather than shipped unverified (see `docs/ROADMAP.md` Phase 6).
+
+Phase 9 (Dispatch) needed nearby-search and couldn't wait — unlike Phase 6, deferring it would
+have meant shipping no dispatch engine at all. It ships instead with a documented, temporary
+Haversine-based nearby query (`App\Domain\Dispatch\Adapters\Haversine\HaversineNearbyTowTruckFinder`,
+see `docs/DISPATCH_ENGINE.md`). Run the script above, then add the `location geography` column to
+`tow_trucks` and a `PostGisNearbyTowTruckFinder` to retire that workaround — the swap is isolated
+to `App\Providers\DispatchServiceProvider`, nothing else changes.
 
 ### Starting services
 

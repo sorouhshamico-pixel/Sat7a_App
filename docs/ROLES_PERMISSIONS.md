@@ -134,6 +134,16 @@ RBAC layer at all — customers have no roles — it's enforced structurally by
 `App\Http\Controllers\Concerns\ResolvesCustomer` plus scoping every lookup through the caller's
 own `orders()` relation, the same pattern already used for vehicles/saved-locations.
 
+## Dispatch (implemented, Phase 9)
+
+`orders.assign` — seeded back in Phase 2, granted to `dispatcher` and `operations_manager` — now
+gates the manual dispatch fallback (`POST /api/v1/admin/orders/{order}/dispatch/retry` and
+`.../dispatch/assign`, see `docs/DISPATCH_ENGINE.md`). No new permission was needed. Driver-facing
+dispatch-offer endpoints (`/api/v1/drivers/me/dispatch-offers/...`) are ownership-scoped like
+customer orders — a driver reaches only their own offers via
+`App\Http\Controllers\Concerns\ResolvesDriver`, not a permission check, since there is no
+platform-wide "view any driver's offers" business need today.
+
 ## Audit logging (implemented)
 
 `App\Domain\Audit\Services\AuditLogger` writes an immutable `audit_logs` row

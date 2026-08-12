@@ -17,8 +17,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 5 | Customer Profiles & Vehicles | Done |
 | 6 | Maps & Location Foundation | Partially done — see notes |
 | 7 | Pricing Engine | Done |
-| 8 | Orders | **Done** |
-| 9 | Dispatch & Matching | Not started |
+| 8 | Orders | Done |
+| 9 | Dispatch & Matching | **Done** |
 | 10 | Realtime | Not started |
 | 11 | Live Location Tracking | Not started |
 | 12 | Payments | Not started |
@@ -251,6 +251,47 @@ transition out of it until Phase 9 exists; payments — `payment_method` is alwa
 `requires_manual_quote` order is rejected at creation with `MANUAL_QUOTE_REQUIRED` rather than
 routed to a staff queue that doesn't exist yet; order photo upload — noted as a reasonable
 near-term follow-up but out of this phase's core scope.
+
+## Phase 9 — Dispatch & Matching (this phase)
+
+Implemented: automated order-to-provider matching. `App\Domain\Dispatch\Actions\DispatchOrderAction`
+runs right after order creation (`App\Domain\Dispatch\Listeners\StartDispatchListener`, subscribed
+to `OrderCreated` — a dispatch failure is logged and never breaks order creation itself), finds
+eligible nearby tow trucks, and offers the order to each of them as a `dispatch_offers` row. A
+wave that finds no candidates widens automatically (configurable radius/candidate-count per wave
+in `config/dispatch.php`) until one succeeds or every configured wave is exhausted, at which point
+`orders.manual_dispatch_required` is flagged for an operations dispatcher. Driver-facing endpoints
+(`/api/v1/drivers/me/dispatch-offers/...`) let a driver view, accept, or reject an offer; accepting
+is concurrency-safe (row-locked DB transaction, re-verified after the lock, every other pending
+offer for the order marked `superseded`) so two drivers can never both be assigned the same order.
+A driver rejecting the last pending offer in a wave escalates immediately; an offer nobody
+responds to is expired and escalated by a scheduled command
+(`dispatch:escalate-stale-offers`, every minute). Operations staff can manually assign a specific
+eligible truck or retry automated dispatch (`/api/v1/admin/orders/{order}/dispatch/...`, gated by
+the `orders.assign` permission already seeded in Phase 2, and audited). See
+`docs/DISPATCH_ENGINE.md` for the full design and — importantly — the PostGIS trade-off this
+phase made.
+
+**The PostGIS trade-off**: this project's own conventions say nearby-location queries must use
+PostGIS, never manual Haversine math in PHP (`docs/DATABASE_SCHEMA.md` §Geography). PostGIS is
+still not installed locally, and `tow_trucks` still has no geography column either (both deferred
+in Phase 6). Phase 6 could defer its PostGIS-dependent pieces without losing much — Phase 9
+couldn't, since a dispatch engine with no candidate search isn't a dispatch engine. Asked how to
+proceed given this exact trade-off, the decision made was to implement the full engine now behind
+a swappable interface (`App\Domain\Dispatch\Contracts\NearbyTowTruckFinder`), with a documented,
+temporary Haversine implementation as the only adapter
+(`App\Domain\Dispatch\Adapters\Haversine\HaversineNearbyTowTruckFinder`) rather than block this
+phase indefinitely or ship an unverifiable PostGIS adapter no local environment could run. See
+`docs/DEPLOYMENT.md` §One-time PostGIS setup for what unblocks the real implementation.
+
+Not yet in this phase: real PostGIS-backed candidate search (see above); the full weighted
+scoring design (distance/rating/acceptance-rate/cancellation-rate/response-time) — today's
+ranking is distance-only, since acceptance-rate/cancellation-rate/response-time data doesn't
+exist anywhere yet (no dispatch history existed before this phase); a driving-route ETA call to
+the Maps `RoutingProvider` for short-listed candidates (candidates are ranked by straight-line
+distance only for now); an "override eligibility" manual-assignment variant (today's manual
+assignment still enforces normal eligibility checks); real-time push of new offers to drivers
+(Phase 10, Realtime — a driver has to poll `GET .../dispatch-offers` today).
 
 ## Definition of Done for every phase
 

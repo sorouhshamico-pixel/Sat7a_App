@@ -95,9 +95,12 @@ class OrderCancellationTest extends TestCase
         $response->assertJsonPath('data.order.status', 'cancelled_by_customer');
         $response->assertJsonPath('data.order.cancelled_by', 'customer');
 
+        // Dispatch (Phase 9) auto-runs the order to searching_provider
+        // right after creation, so that's the status cancellation
+        // transitions from here, not pending.
         $this->assertDatabaseHas('order_status_history', [
             'to_status' => 'cancelled_by_customer',
-            'from_status' => 'pending',
+            'from_status' => 'searching_provider',
         ]);
     }
 
@@ -114,10 +117,11 @@ class OrderCancellationTest extends TestCase
 
         $orderId = $this->createOrderFor($token, $vehicleId);
 
+        // Dispatch (Phase 9) has already auto-transitioned the order to
+        // searching_provider by this point (see StartDispatchListener).
         $order = Order::query()->where('public_id', $orderId)->firstOrFail();
         $stateMachine = app(OrderStateMachine::class);
-        $stateMachine->transition($order, OrderStatus::SearchingProvider);
-        $stateMachine->transition($order->fresh(), OrderStatus::ProviderAssigned);
+        $stateMachine->transition($order, OrderStatus::ProviderAssigned);
         $stateMachine->transition($order->fresh(), OrderStatus::ProviderEnRoute);
         $stateMachine->transition($order->fresh(), OrderStatus::ProviderArrived);
         $stateMachine->transition($order->fresh(), OrderStatus::VehicleLoading);
@@ -162,8 +166,10 @@ class OrderCancellationTest extends TestCase
         $response = $this->withToken($token)->getJson("/api/v1/customers/me/orders/{$orderId}/timeline");
 
         $response->assertOk();
-        $this->assertCount(1, $response->json('data.timeline'));
+        // pending (creation) + searching_provider (auto-dispatch, Phase 9).
+        $this->assertCount(2, $response->json('data.timeline'));
         $response->assertJsonPath('data.timeline.0.to_status', 'pending');
+        $response->assertJsonPath('data.timeline.1.to_status', 'searching_provider');
     }
 
     public function test_a_customer_can_list_their_order_history(): void

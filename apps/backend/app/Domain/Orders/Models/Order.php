@@ -4,6 +4,7 @@ namespace App\Domain\Orders\Models;
 
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Customers\Models\Vehicle;
+use App\Domain\Dispatch\Models\DispatchOffer;
 use App\Domain\Drivers\Models\Driver;
 use App\Domain\Fleet\Models\TowTruck;
 use App\Domain\Orders\Enums\OrderCancelledBy;
@@ -95,5 +96,13 @@ class Order extends Model
     public function statusHistory(): HasMany
     {
         return $this->hasMany(OrderStatusHistory::class)->orderBy('created_at');
+    }
+
+    /**
+     * @return HasMany<DispatchOffer, $this>
+     */
+    public function dispatchOffers(): HasMany
+    {
+        return $this->hasMany(DispatchOffer::class);
     }
 }
