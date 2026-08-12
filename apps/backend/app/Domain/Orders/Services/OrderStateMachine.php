@@ -3,6 +3,7 @@
 namespace App\Domain\Orders\Services;
 
 use App\Domain\Orders\Enums\OrderStatus;
+use App\Domain\Orders\Events\OrderStatusChanged;
 use App\Domain\Orders\Exceptions\OrderException;
 use App\Domain\Orders\Models\Order;
 use App\Domain\Orders\Models\OrderStatusHistory;
@@ -43,7 +44,16 @@ class OrderStateMachine
             $history->save();
         });
 
-        return $order->refresh();
+        $order = $order->refresh();
+
+        // ShouldDispatchAfterCommit defers the actual broadcast until the
+        // enclosing transaction commits — safe to dispatch unconditionally
+        // here even though transition() is often called from inside
+        // another action's own transaction (see OrderStatusChanged's
+        // docblock).
+        OrderStatusChanged::dispatch($order, $from, $to);
+
+        return $order;
     }
 
     /**

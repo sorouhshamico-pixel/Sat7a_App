@@ -2,9 +2,9 @@
 
 ## Status
 
-Phase 9: authentication, admin role-management, provider onboarding/compliance, fleet/driver
-management, customer profile/vehicle/saved-location, maps/cities, pricing, order, and dispatch
-endpoints exist (listed below). The actual OpenAPI 3.x document will live at
+Phase 10: authentication, admin role-management, provider onboarding/compliance, fleet/driver
+management, customer profile/vehicle/saved-location, maps/cities, pricing, order, dispatch, and
+realtime-auth endpoints exist (listed below). The actual OpenAPI 3.x document will live at
 `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
 stabilizes further; for now this file is the source of truth and must stay in sync with the real
 routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
@@ -86,6 +86,7 @@ exist yet.
 | GET | `/api/v1/admin/orders/{order}/dispatch-offers` | token ability `*` + permission `orders.view_all` | Full offer history for an order |
 | POST | `/api/v1/admin/orders/{order}/dispatch/retry` | token ability `*` + permission `orders.assign` | Rescans from wave 1 for an order (e.g. after new trucks came online) |
 | POST | `/api/v1/admin/orders/{order}/dispatch/assign` | token ability `*` + permission `orders.assign` | Manually assigns a specific eligible tow truck (audited) |
+| POST | `/api/v1/broadcasting/auth` | token ability `*` | Authorizes a private WebSocket channel subscription (Reverb) — see `docs/REALTIME.md` |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

@@ -3,6 +3,7 @@
 namespace App\Domain\Dispatch\Actions;
 
 use App\Domain\Dispatch\Contracts\NearbyTowTruckFinder;
+use App\Domain\Dispatch\Events\DispatchOfferCreated;
 use App\Domain\Dispatch\Exceptions\DispatchException;
 use App\Domain\Dispatch\Models\DispatchOffer;
 use App\Domain\Fleet\Enums\ServiceCapability;
@@ -97,6 +98,11 @@ class DispatchOrderAction
                     'expires_at' => $expiresAt,
                 ]);
                 $offer->save();
+
+                // ShouldDispatchAfterCommit defers this until the
+                // enclosing transaction actually commits — see the
+                // event's docblock.
+                DispatchOfferCreated::dispatch($offer);
             }
 
             $order->current_dispatch_wave = $wave;

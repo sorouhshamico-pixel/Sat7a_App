@@ -41,6 +41,16 @@ see `docs/DISPATCH_ENGINE.md`). Run the script above, then add the `location geo
 `tow_trucks` and a `PostGisNearbyTowTruckFinder` to retire that workaround — the swap is isolated
 to `App\Providers\DispatchServiceProvider`, nothing else changes.
 
+### Realtime (Reverb) — implemented, Phase 10
+
+`REVERB_APP_ID`/`REVERB_APP_KEY`/`REVERB_APP_SECRET` in `.env` are locally-generated identifiers
+for the self-hosted Reverb server, not a third-party credential (see `docs/REALTIME.md` and
+`docs/SECURITY.md` §Secrets) — generate your own with any random string generator if setting up
+a fresh environment; there's nothing to request from a vendor. `php artisan reverb:start` (below)
+must be running for realtime features to work locally; the rest of the API works fine without it
+(broadcasting failures are logged and never break the underlying HTTP request — see
+`docs/REALTIME.md`).
+
 ### Starting services
 
 ```bash

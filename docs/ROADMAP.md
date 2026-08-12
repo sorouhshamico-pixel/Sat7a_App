@@ -18,8 +18,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 6 | Maps & Location Foundation | Partially done — see notes |
 | 7 | Pricing Engine | Done |
 | 8 | Orders | Done |
-| 9 | Dispatch & Matching | **Done** |
-| 10 | Realtime | Not started |
+| 9 | Dispatch & Matching | Done |
+| 10 | Realtime | **Done** |
 | 11 | Live Location Tracking | Not started |
 | 12 | Payments | Not started |
 | 13 | Financial Ledger & Commission | Not started |
@@ -292,6 +292,34 @@ the Maps `RoutingProvider` for short-listed candidates (candidates are ranked by
 distance only for now); an "override eligibility" manual-assignment variant (today's manual
 assignment still enforces normal eligibility checks); real-time push of new offers to drivers
 (Phase 10, Realtime — a driver has to poll `GET .../dispatch-offers` today).
+
+## Phase 10 — Realtime (this phase)
+
+Implemented: Laravel Reverb wired up for real, authenticated per-order/per-driver WebSocket
+channels — closing the gap Phase 9 explicitly left open. `App\Domain\Orders\Events\OrderStatusChanged`
+broadcasts on `orders.{orderPublicId}` from the single choke point every order status change
+already goes through (`OrderStateMachine::transition()`), so cancellation, dispatch acceptance,
+manual assignment, and every later phase's transitions broadcast with no per-caller wiring.
+`App\Domain\Dispatch\Events\DispatchOfferCreated` broadcasts on `drivers.{driverPublicId}` the
+moment `DispatchOrderAction` creates an offer, so a driver's app can show a new job without
+polling. Both events implement `Illuminate\Contracts\Events\ShouldDispatchAfterCommit`, since the
+actions dispatching them routinely run inside their own (sometimes nested) DB transaction — this
+defers the actual broadcast until the outermost commit, so nothing broadcasts for a change that
+then rolls back.
+
+`POST /api/v1/broadcasting/auth` requires the same fully-privileged Sanctum token as the rest of
+the API — registered explicitly via `->withBroadcasting()` in `bootstrap/app.php` rather than the
+`channels:` shorthand on `withRouting()`, whose default middleware (the session-based `web`
+guard) a Bearer-token API client can't satisfy. Channel authorization
+(`routes/channels.php`) is tested against the real Pusher-protocol-compatible driver, not the
+test suite's default `null` broadcaster, which doesn't implement authorization logic at all. See
+`docs/REALTIME.md` for the full design, including a documented testing-environment gotcha around
+`Broadcast::channel()` registering onto whichever driver instance is current at the moment
+`routes/channels.php` is `require`d.
+
+Not yet in this phase: no frontend (Echo/Reverb JS client) consumes any of this — that's Phase
+19+; no presence channels; no live-location broadcast (Phase 11 will very likely reuse the
+`orders.{orderPublicId}` channel for a new event type once trip tracking exists).
 
 ## Definition of Done for every phase
 

@@ -59,10 +59,11 @@ reach-through, so domains stay independently testable.
 
 ## 4. Realtime
 
-Laravel Reverb provides authenticated, per-order/per-provider WebSocket channels. Every
-channel subscription is authorized server-side; no client can subscribe to an order or
-provider channel it doesn't own or isn't assigned to. See `docs/ARCHITECTURE.md` §9 once
-Phase 10 lands, and `docs/DISPATCH_ENGINE.md`.
+Implemented, Phase 10. Laravel Reverb provides authenticated, per-order/per-driver WebSocket
+channels — order status changes and new dispatch offers broadcast automatically. Every channel
+subscription is authorized server-side (`routes/channels.php`); no client can subscribe to an
+order or driver channel it doesn't own or isn't assigned to. See `docs/REALTIME.md` for the full
+design and `docs/DISPATCH_ENGINE.md` for the dispatch-offer side.
 
 ## 5. Background processing
 
