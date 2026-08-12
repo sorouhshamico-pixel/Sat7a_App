@@ -12,8 +12,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 0 | Architecture & Foundation | Done |
 | 1 | Authentication & Security Foundation | Done |
 | 2 | Roles & Permissions | Done |
-| 3 | Provider Onboarding | **In progress** |
-| 4 | Fleet & Drivers | Not started |
+| 3 | Provider Onboarding | Done |
+| 4 | Fleet & Drivers | **In progress** |
 | 5 | Customer Profiles & Vehicles | Not started |
 | 6 | Maps & Location Foundation | Not started |
 | 7 | Pricing Engine | Not started |
@@ -110,6 +110,37 @@ already expired. See `docs/COMPLIANCE.md` for details.
 Not yet in this phase: fleet/drivers (Phase 4, which will also let a provider_staff user who
 isn't the owner — a fleet manager or driver — resolve "their" provider); bank accounts
 (Phase 14); real notification delivery for expiry alerts (Phase 16, logged for now).
+
+## Phase 4 — Fleet & Drivers (this phase)
+
+Implemented: `drivers` and `tow_trucks` tables, plus a `users.provider_id` column added to
+unify "which provider does this provider_staff user belong to" across owner, fleet manager, and
+driver alike — Phase 3's provider controllers were refactored to resolve through it too
+(`App\Http\Controllers\Concerns\ResolvesProvider`) instead of the narrower owner-only lookup.
+Adding a driver follows the same shape as provider registration: creates the driver's
+(unverified) provider_staff login and the `Driver` profile in one transaction, then sends an
+OTP — the driver completes authentication via the existing Phase 1 OTP-verify endpoint.
+
+Tow trucks have a real state machine (`App\Domain\Fleet\Enums\TowTruckStatus`) — every
+transition is validated against an explicit matrix; the provider-facing status endpoint only
+reaches the offline/available/maintenance/unavailable subgraph, since the dispatch-driven states
+(reserved/en_route/arrived/loading/on_trip) are set by the dispatch/trip system from Phase 9
+onward, through the same action and therefore the same matrix. `service_capabilities` is a
+JSON array of an enum (`App\Domain\Fleet\Enums\ServiceCapability`) so a truck can support more
+than one. A driver can only be assigned to one truck at a time (enforced at the DB level and in
+`AssignDriverToTowTruckAction`).
+
+Admin-side driver/tow-truck suspension deliberately uses **separate** permissions
+(`drivers.suspend`/`fleet.suspend`) from the provider-side self-service ones
+(`drivers.manage`/`fleet.manage`) — sharing one permission across both would have let a
+provider_owner reach the platform-wide admin suspend endpoint for *any* provider's driver, not
+just their own, since a permission check alone doesn't scope by provider the way the `/me`
+routes structurally do. Caught and fixed during Phase 4 rather than shipped (see
+`docs/ROLES_PERMISSIONS.md`).
+
+Not yet in this phase: PostGIS geography for `current_latitude`/`current_longitude` (plain
+decimal columns for now — converted once spatial "nearby" queries land in Phase 6); dispatch
+integration for the reserved/en_route/etc. states (Phase 9); bank accounts (Phase 14).
 
 ## Definition of Done for every phase
 

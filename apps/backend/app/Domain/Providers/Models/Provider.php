@@ -3,12 +3,15 @@
 namespace App\Domain\Providers\Models;
 
 use App\Domain\Compliance\Models\Document;
+use App\Domain\Drivers\Models\Driver;
+use App\Domain\Fleet\Models\TowTruck;
 use App\Domain\Providers\Enums\ProviderStatus;
 use App\Models\User;
 use App\Support\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
@@ -54,5 +57,21 @@ class Provider extends Model
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    /**
+     * @return HasMany<Driver, $this>
+     */
+    public function drivers(): HasMany
+    {
+        return $this->hasMany(Driver::class);
+    }
+
+    /**
+     * @return HasMany<TowTruck, $this>
+     */
+    public function towTrucks(): HasMany
+    {
+        return $this->hasMany(TowTruck::class);
     }
 }

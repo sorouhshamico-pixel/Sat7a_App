@@ -2,8 +2,8 @@
 
 ## Status
 
-Phase 3: authentication, admin role-management, and provider onboarding/compliance endpoints
-exist (listed below). The actual OpenAPI 3.x document will live at
+Phase 4: authentication, admin role-management, provider onboarding/compliance, and fleet/driver
+management endpoints exist (listed below). The actual OpenAPI 3.x document will live at
 `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
 stabilizes further; for now this file is the source of truth and must stay in sync with the real
 routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
@@ -40,6 +40,16 @@ exist yet.
 | POST | `/api/v1/admin/providers/{provider}/suspend` | token ability `*` + permission `providers.suspend` | Suspends with a reason (audited) |
 | POST | `/api/v1/admin/documents/{document}/verify` | token ability `*` + permission `documents.verify` | Marks a document verified (audited) |
 | POST | `/api/v1/admin/documents/{document}/reject` | token ability `*` + permission `documents.verify` | Rejects with a reason (audited) |
+| GET | `/api/v1/providers/me/drivers` | token ability `*` + permission `drivers.manage` | Lists the caller's own provider's drivers |
+| POST | `/api/v1/providers/me/drivers` | token ability `*` + permission `drivers.manage` | Adds a driver (creates login, sends OTP) |
+| PATCH | `/api/v1/providers/me/drivers/{driverPublicId}/availability` | token ability `*` + permission `drivers.manage` | Toggles online/offline |
+| GET | `/api/v1/providers/me/fleet` | token ability `*` + permission `fleet.manage` | Lists the caller's own provider's tow trucks |
+| POST | `/api/v1/providers/me/fleet` | token ability `*` + permission `fleet.manage` | Adds a tow truck |
+| GET | `/api/v1/providers/me/fleet/summary` | token ability `*` + permission `fleet.manage` | Fleet dashboard counts |
+| PATCH | `/api/v1/providers/me/fleet/{towTruckPublicId}/driver` | token ability `*` + permission `fleet.manage` | Assigns/unassigns a driver |
+| PATCH | `/api/v1/providers/me/fleet/{towTruckPublicId}/status` | token ability `*` + permission `fleet.manage` | Transitions status (validated matrix) |
+| POST | `/api/v1/admin/drivers/{driver}/suspend` | token ability `*` + permission `drivers.suspend` | Platform-wide, any provider (audited) |
+| POST | `/api/v1/admin/tow-trucks/{towTruck}/suspend` | token ability `*` + permission `fleet.suspend` | Platform-wide, any provider (audited) |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

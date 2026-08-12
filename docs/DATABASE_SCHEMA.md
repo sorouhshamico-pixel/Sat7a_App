@@ -15,7 +15,15 @@ stay in sync with `apps/backend/database/migrations/`.
 - `audit_logs` — immutable, append-only (Phase 2).
 - `providers` — see `docs/COMPLIANCE.md` §Provider compliance lifecycle (Phase 3).
 - `documents` — polymorphic (`documentable_type`/`documentable_id`); Provider documents today,
-  Driver/Tow-Truck documents from Phase 4 reuse this same table (Phase 3).
+  Driver documents from Phase 4 reuse this same table (Phase 3/4).
+- `users.provider_id` — added in Phase 4; single source of truth for which provider a
+  provider_staff user (owner, fleet manager, or driver) belongs to.
+- `drivers` — `provider_id`, `user_id` (the driver's own login, unique), nationality/license
+  fields collected only where needed, `status`, `is_available`, `rating` (Phase 4).
+- `tow_trucks` — `provider_id`, `driver_id` (nullable, unique — one truck per driver),
+  `service_capabilities` (JSON array), `status` (state machine, see
+  `App\Domain\Fleet\Enums\TowTruckStatus`), `current_latitude`/`current_longitude`/
+  `last_location_at` (plain decimals for now — see §Geography below) (Phase 4).
 
 ## Engine
 

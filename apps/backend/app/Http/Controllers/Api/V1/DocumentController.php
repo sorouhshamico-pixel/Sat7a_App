@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Compliance\Models\Document;
+use App\Domain\Drivers\Models\Driver;
 use App\Domain\Providers\Models\Provider;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
@@ -15,10 +16,11 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Every document is served from here — never a public URL (see
- * docs/SECURITY.md §File uploads). Access is granted either to whoever
- * owns the underlying record (e.g. the provider that uploaded it) or to a
- * staff member with the matching permission, checked fresh on every
- * request rather than trusting a previously-issued link.
+ * docs/SECURITY.md §File uploads). Access is granted to anyone belonging
+ * to the same provider as the underlying record (the provider itself, or
+ * one of its drivers) or to a staff member with the matching permission,
+ * checked fresh on every request rather than trusting a previously-issued
+ * link.
  */
 class DocumentController extends Controller
 {
@@ -45,9 +47,9 @@ class DocumentController extends Controller
 
     private function canAccess(User $user, Document $document): bool
     {
-        $owner = $this->documentableOwner($document);
+        $documentableProviderId = $this->documentableProviderId($document);
 
-        if ($owner !== null && $owner->id === $user->id) {
+        if ($documentableProviderId !== null && $documentableProviderId === $user->provider_id) {
             return true;
         }
 
@@ -58,12 +60,13 @@ class DocumentController extends Controller
         return $user->hasPermission('documents.view');
     }
 
-    private function documentableOwner(Document $document): ?User
+    private function documentableProviderId(Document $document): ?int
     {
         $documentable = $document->documentable;
 
         return match (true) {
-            $documentable instanceof Provider => $documentable->owner,
+            $documentable instanceof Provider => $documentable->id,
+            $documentable instanceof Driver => $documentable->provider_id,
             default => null,
         };
     }

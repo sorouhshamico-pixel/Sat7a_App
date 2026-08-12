@@ -39,13 +39,23 @@ Admin                      (admin, scope: platform)
 Super Admin                 (super_admin, scope: platform)
 ```
 
-Provider-scoped roles (`provider_owner`, `fleet_manager`, `driver`) are seeded now so the
-catalog is stable, but real provider-scoped enforcement (a fleet manager can only manage *their*
-provider's fleet) lands with the Provider domain in Phase 3/4 — `role_user` doesn't carry a
-`provider_id` yet; a provider-staff user's provider affiliation will live on the future
-`providers`/`drivers` tables instead, so a permission check becomes "does this role grant the
-permission" **and** "does this user belong to the provider this resource belongs to" (a separate,
-ownership-style check, same pattern as customer ownership).
+Provider-scoped enforcement is implemented as of Phase 4: `users.provider_id` is the single
+source of truth for which provider an owner/fleet-manager/driver belongs to, and every
+provider-facing endpoint (`/api/v1/providers/me/...`) resolves through it
+(`App\Http\Controllers\Concerns\ResolvesProvider`) rather than taking a `{provider}` route
+parameter — so a permission check ("does this role grant `drivers.manage`") is never by itself
+sufficient to reach another provider's data; there's structurally no route through which to try.
+
+## Provider-side vs. platform-side permissions with the same name shape
+
+`drivers.manage`/`fleet.manage` (provider self-service, own provider only) are **deliberately
+separate** from `drivers.suspend`/`fleet.suspend` (platform/compliance-side, any provider) —
+they are not the same permission reused at two scopes. Sharing one permission across both was
+the original design and turned out to be a real bug (caught in Phase 4, before shipping): since
+a `Gate::before`-driven permission check has no concept of "which provider," a `provider_owner`
+who legitimately has `drivers.manage` for their own fleet would also have passed the middleware
+guarding the platform-wide admin suspend endpoint for *any* provider's driver. The fix is
+structural, not a patch: two distinct permissions, granted to disjoint role sets.
 
 ## Permission catalog (`App\Domain\Authorization\Enums\PermissionName`)
 
@@ -55,9 +65,9 @@ orders.cancel             orders.refund
 
 providers.view            providers.approve         providers.suspend
 
-drivers.manage
+drivers.manage             drivers.suspend
 
-fleet.manage
+fleet.manage                fleet.suspend
 
 payments.view              payments.refund
 
@@ -92,6 +102,17 @@ gated by the `roles.manage` permission and requiring a fully-privileged token (s
 `docs/API_SPECIFICATION.md`). The very first `super_admin` account is created out-of-band via
 `php artisan admin:create-super-admin {email} {name}` — there is no public admin registration
 endpoint.
+
+## Fleet & drivers (implemented, Phase 4)
+
+Provider self-service (`/api/v1/providers/me/drivers`, `/api/v1/providers/me/fleet/...`) is
+gated by `drivers.manage`/`fleet.manage`, granted to `provider_owner` and `fleet_manager` (not
+`driver`) — always scoped to the caller's own provider by construction, never by a route
+parameter. Platform-side suspension (`/api/v1/admin/drivers/{driver}/suspend`,
+`/api/v1/admin/tow-trucks/{towTruck}/suspend`) is gated by the separate
+`drivers.suspend`/`fleet.suspend` permissions, granted to `compliance_officer` and
+`operations_manager` — both audited via `App\Domain\Drivers\Actions\SuspendDriverAction` /
+`App\Domain\Fleet\Actions\SuspendTowTruckAction`.
 
 ## Audit logging (implemented)
 

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\V1\Providers;
 
 use App\Domain\Compliance\Actions\UploadDocumentAction;
 use App\Domain\Compliance\Enums\DocumentType;
-use App\Domain\Providers\Models\Provider;
+use App\Http\Controllers\Concerns\ResolvesProvider;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Providers\UploadDocumentRequest;
 use App\Http\Resources\Api\V1\DocumentResource;
@@ -14,9 +14,11 @@ use Illuminate\Http\Request;
 
 class ProviderDocumentController extends Controller
 {
+    use ResolvesProvider;
+
     public function index(Request $request): JsonResponse
     {
-        $provider = $this->ownedProvider($request);
+        $provider = $this->resolveProvider($request);
 
         return ApiResponse::success([
             'documents' => DocumentResource::collection($provider->documents()->get()),
@@ -25,7 +27,7 @@ class ProviderDocumentController extends Controller
 
     public function store(UploadDocumentRequest $request, UploadDocumentAction $action): JsonResponse
     {
-        $provider = $this->ownedProvider($request);
+        $provider = $this->resolveProvider($request);
 
         $document = $action->handle(
             documentable: $provider,
@@ -38,10 +40,5 @@ class ProviderDocumentController extends Controller
         );
 
         return ApiResponse::success(['document' => new DocumentResource($document)], status: 201);
-    }
-
-    private function ownedProvider(Request $request): Provider
-    {
-        return Provider::query()->where('owner_id', $request->user()->id)->firstOrFail();
     }
 }

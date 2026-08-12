@@ -19,9 +19,20 @@ enum PermissionName: string
     case ProvidersApprove = 'providers.approve';
     case ProvidersSuspend = 'providers.suspend';
 
+    // Provider-side self-service only (own provider — see
+    // App\Http\Controllers\Concerns\ResolvesProvider). Deliberately
+    // distinct from *Suspend below: a provider_owner/fleet_manager must
+    // never be able to reach the platform-wide admin suspend endpoints
+    // just because they can manage their own fleet/drivers.
     case DriversManage = 'drivers.manage';
-
     case FleetManage = 'fleet.manage';
+
+    // Platform/compliance-side only — suspending any provider's driver or
+    // tow truck, not scoped to "your own provider" (see
+    // App\Domain\Drivers\Actions\SuspendDriverAction and
+    // App\Domain\Fleet\Actions\SuspendTowTruckAction).
+    case DriversSuspend = 'drivers.suspend';
+    case FleetSuspend = 'fleet.suspend';
 
     case PaymentsView = 'payments.view';
     case PaymentsRefund = 'payments.refund';

@@ -82,6 +82,8 @@ class RolePermissionSeeder extends Seeder
                 $p::DocumentsView->value,
                 $p::DocumentsViewSensitive->value,
                 $p::DocumentsVerify->value,
+                $p::DriversSuspend->value,
+                $p::FleetSuspend->value,
             ],
             RoleName::OperationsManager->value => [
                 $p::OrdersView->value,
@@ -90,6 +92,8 @@ class RolePermissionSeeder extends Seeder
                 $p::OrdersCancel->value,
                 $p::ProvidersView->value,
                 $p::UsersView->value,
+                $p::DriversSuspend->value,
+                $p::FleetSuspend->value,
             ],
             RoleName::Admin->value => array_map(
                 fn (PermissionName $permission) => $permission->value,

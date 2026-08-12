@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Admin\DocumentVerificationController;
+use App\Http\Controllers\Api\V1\Admin\DriverController as AdminDriverController;
 use App\Http\Controllers\Api\V1\Admin\ProviderController as AdminProviderController;
 use App\Http\Controllers\Api\V1\Admin\RoleController;
+use App\Http\Controllers\Api\V1\Admin\TowTruckController as AdminTowTruckController;
 use App\Http\Controllers\Api\V1\Admin\UserRoleController;
 use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
@@ -12,6 +14,8 @@ use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Providers\ProviderController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDocumentController;
+use App\Http\Controllers\Api\V1\Providers\ProviderDriverController;
+use App\Http\Controllers\Api\V1\Providers\ProviderFleetController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -79,6 +83,27 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::patch('/me', [ProviderController::class, 'update'])->name('me.update');
             Route::get('/me/documents', [ProviderDocumentController::class, 'index'])->name('me.documents.index');
             Route::post('/me/documents', [ProviderDocumentController::class, 'store'])->name('me.documents.store');
+
+            // Fleet & drivers — gated by drivers.manage/fleet.manage
+            // (granted to provider_owner and fleet_manager, not driver —
+            // see docs/ROLES_PERMISSIONS.md). Always scoped to the
+            // caller's own provider; there is no {provider} parameter.
+            Route::middleware('can:drivers.manage')->group(function (): void {
+                Route::get('/me/drivers', [ProviderDriverController::class, 'index'])->name('me.drivers.index');
+                Route::post('/me/drivers', [ProviderDriverController::class, 'store'])->name('me.drivers.store');
+                Route::patch('/me/drivers/{driverPublicId}/availability', [ProviderDriverController::class, 'updateAvailability'])
+                    ->name('me.drivers.availability');
+            });
+
+            Route::middleware('can:fleet.manage')->group(function (): void {
+                Route::get('/me/fleet', [ProviderFleetController::class, 'index'])->name('me.fleet.index');
+                Route::post('/me/fleet', [ProviderFleetController::class, 'store'])->name('me.fleet.store');
+                Route::get('/me/fleet/summary', [ProviderFleetController::class, 'summary'])->name('me.fleet.summary');
+                Route::patch('/me/fleet/{towTruckPublicId}/driver', [ProviderFleetController::class, 'assignDriver'])
+                    ->name('me.fleet.assign-driver');
+                Route::patch('/me/fleet/{towTruckPublicId}/status', [ProviderFleetController::class, 'updateStatus'])
+                    ->name('me.fleet.status');
+            });
         });
     });
 
@@ -120,5 +145,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/documents/{document}/verify', [DocumentVerificationController::class, 'verify'])->name('documents.verify');
             Route::post('/documents/{document}/reject', [DocumentVerificationController::class, 'reject'])->name('documents.reject');
         });
+
+        Route::post('/drivers/{driver}/suspend', [AdminDriverController::class, 'suspend'])
+            ->middleware('can:drivers.suspend')
+            ->name('drivers.suspend');
+
+        Route::post('/tow-trucks/{towTruck}/suspend', [AdminTowTruckController::class, 'suspend'])
+            ->middleware('can:fleet.suspend')
+            ->name('tow-trucks.suspend');
     });
 });

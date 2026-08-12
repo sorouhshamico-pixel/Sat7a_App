@@ -55,6 +55,8 @@ class RegisterProviderAction
             $provider->owner_id = $owner->id;
             $provider->save();
 
+            $owner->forceFill(['provider_id' => $provider->id])->save();
+
             return $provider;
         });
 
