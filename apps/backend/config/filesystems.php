@@ -38,6 +38,22 @@ return [
             'report' => false,
         ],
 
+        // Compliance documents. Deliberately NOT `serve => true` — unlike
+        // the default `local` disk, this must never be reachable via an
+        // auto-registered public route. Every download goes through
+        // App\Http\Controllers\Api\V1\DocumentController@download, which
+        // checks permission before streaming (see docs/SECURITY.md
+        // §File uploads). Swap to an S3-compatible disk in production by
+        // changing `driver`/credentials here — application code never
+        // depends on which one is active.
+        'documents' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/documents'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

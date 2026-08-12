@@ -5,31 +5,12 @@ namespace Tests\Feature\Api\V1\Auth;
 use App\Domain\Authentication\Services\TwoFactorAuthenticationService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Testing\TestResponse;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
 class AdminAuthenticationTest extends TestCase
 {
     use RefreshDatabase;
-
-    /**
-     * Laravel's `sanctum` guard (a RequestGuard) caches the resolved user
-     * for the lifetime of the test's app container, so a test that
-     * authenticates as different tokens in sequence must force a fresh
-     * guard resolution between requests — otherwise it silently keeps
-     * "logged in" as whichever identity was resolved first, which never
-     * happens in real usage (each real request gets a fresh container).
-     *
-     * @param  array<string, mixed>  $data
-     */
-    private function postAsToken(string $token, string $uri, array $data = []): TestResponse
-    {
-        Auth::forgetGuards();
-
-        return $this->withToken($token)->postJson($uri, $data);
-    }
 
     public function test_login_rejects_wrong_password(): void
     {
@@ -78,14 +59,14 @@ class AdminAuthenticationTest extends TestCase
             'password' => 'password',
         ])->json('data.token');
 
-        $setupResponse = $this->postAsToken($setupToken, '/api/v1/auth/admin/mfa/setup');
+        $setupResponse = $this->actingAsToken('POST', $setupToken, '/api/v1/auth/admin/mfa/setup');
         $setupResponse->assertOk();
         $secret = $setupResponse->json('data.secret');
 
         $google2fa = app(Google2FA::class);
         $validCode = $google2fa->getCurrentOtp($secret);
 
-        $confirmResponse = $this->postAsToken($setupToken, '/api/v1/auth/admin/mfa/confirm', ['code' => $validCode]);
+        $confirmResponse = $this->actingAsToken('POST', $setupToken, '/api/v1/auth/admin/mfa/confirm', ['code' => $validCode]);
         $confirmResponse->assertOk();
         $this->assertCount(8, $confirmResponse->json('data.recovery_codes'));
         $fullToken = $confirmResponse->json('data.token');
@@ -95,7 +76,7 @@ class AdminAuthenticationTest extends TestCase
         $this->assertTrue($user->hasMfaEnabled());
 
         // The setup token must no longer work after the full token is issued.
-        $this->postAsToken($setupToken, '/api/v1/auth/admin/mfa/setup')
+        $this->actingAsToken('POST', $setupToken, '/api/v1/auth/admin/mfa/setup')
             ->assertStatus(401);
 
         // Subsequent login now requires the MFA challenge, not setup again.
@@ -106,7 +87,7 @@ class AdminAuthenticationTest extends TestCase
 
         $newValidCode = $google2fa->getCurrentOtp($user->two_factor_secret);
 
-        $challengeResponse = $this->postAsToken($challengeToken, '/api/v1/auth/admin/mfa/challenge', ['code' => $newValidCode]);
+        $challengeResponse = $this->actingAsToken('POST', $challengeToken, '/api/v1/auth/admin/mfa/challenge', ['code' => $newValidCode]);
 
         $challengeResponse->assertOk();
         $this->assertNotEmpty($challengeResponse->json('data.token'));

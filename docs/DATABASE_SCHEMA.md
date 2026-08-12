@@ -2,9 +2,20 @@
 
 ## Status
 
-Phase 0: conventions and cross-cutting rules only. No domain tables exist yet — those are
-introduced starting Phase 3 (Provider Onboarding) and documented here as each migration lands.
-This document must stay in sync with `apps/backend/database/migrations/`.
+Conventions and cross-cutting rules, plus the tables implemented so far. This document must
+stay in sync with `apps/backend/database/migrations/`.
+
+## Tables (implemented)
+
+- `users` — see `docs/SECURITY.md` §Authentication (Phase 1).
+- `otp_codes` — see `docs/SECURITY.md` §OTP handling (Phase 1).
+- `personal_access_tokens` — Sanctum (Phase 1).
+- `roles`, `permissions`, `permission_role`, `role_user` — see `docs/ROLES_PERMISSIONS.md`
+  (Phase 2).
+- `audit_logs` — immutable, append-only (Phase 2).
+- `providers` — see `docs/COMPLIANCE.md` §Provider compliance lifecycle (Phase 3).
+- `documents` — polymorphic (`documentable_type`/`documentable_id`); Provider documents today,
+  Driver/Tow-Truck documents from Phase 4 reuse this same table (Phase 3).
 
 ## Engine
 

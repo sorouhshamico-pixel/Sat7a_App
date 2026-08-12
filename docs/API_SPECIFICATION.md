@@ -2,11 +2,12 @@
 
 ## Status
 
-Phase 2: authentication and admin role-management endpoints exist (listed below). The actual
-OpenAPI 3.x document will live at `packages/api-contracts/openapi.yaml`,
-generated/maintained starting once the endpoint surface stabilizes further; for now this file is
-the source of truth and must stay in sync with the real routes in `apps/backend/routes/api.php`
-— never a description of an intended API that doesn't exist yet.
+Phase 3: authentication, admin role-management, and provider onboarding/compliance endpoints
+exist (listed below). The actual OpenAPI 3.x document will live at
+`packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
+stabilizes further; for now this file is the source of truth and must stay in sync with the real
+routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
+exist yet.
 
 ## Implemented endpoints
 
@@ -26,6 +27,19 @@ the source of truth and must stay in sync with the real routes in `apps/backend/
 | GET | `/api/v1/admin/users/{user}/roles` | token ability `*` + permission `roles.manage` | Lists a user's assigned roles |
 | POST | `/api/v1/admin/users/{user}/roles` | token ability `*` + permission `roles.manage` | Assigns a role to a user (audited) |
 | DELETE | `/api/v1/admin/users/{user}/roles/{roleName}` | token ability `*` + permission `roles.manage` | Revokes a role from a user (audited) |
+| POST | `/api/v1/providers/register` | none (rate-limited) | Creates the provider_staff owner + pending Provider, sends OTP |
+| GET | `/api/v1/providers/me` | token ability `*` | The authenticated owner's provider profile |
+| PATCH | `/api/v1/providers/me` | token ability `*` | Updates commercial/legal profile fields |
+| GET | `/api/v1/providers/me/documents` | token ability `*` | Lists the provider's own documents |
+| POST | `/api/v1/providers/me/documents` | token ability `*` | Uploads a document (private storage) |
+| GET | `/api/v1/documents/{document}/download` | token ability `*` | Ownership- or permission-checked file download |
+| GET | `/api/v1/admin/providers` | token ability `*` + permission `providers.view` | Lists/filters providers by status |
+| GET | `/api/v1/admin/providers/{provider}` | token ability `*` + permission `providers.view` | Provider detail + documents |
+| POST | `/api/v1/admin/providers/{provider}/approve` | token ability `*` + permission `providers.approve` | Approves a provider (audited) |
+| POST | `/api/v1/admin/providers/{provider}/reject` | token ability `*` + permission `providers.approve` | Rejects with a reason (audited) |
+| POST | `/api/v1/admin/providers/{provider}/suspend` | token ability `*` + permission `providers.suspend` | Suspends with a reason (audited) |
+| POST | `/api/v1/admin/documents/{document}/verify` | token ability `*` + permission `documents.verify` | Marks a document verified (audited) |
+| POST | `/api/v1/admin/documents/{document}/reject` | token ability `*` + permission `documents.verify` | Rejects with a reason (audited) |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

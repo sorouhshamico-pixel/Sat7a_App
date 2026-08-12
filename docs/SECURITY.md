@@ -117,11 +117,22 @@ Every API input goes through Form Requests with explicit validation rules — ne
 the frontend alone. Model creation/updates use explicit field mapping, never
 `$request->all()` passed straight into a model, for any endpoint that touches sensitive fields.
 
-## File uploads (design; implemented starting Phase 3)
+## File uploads (implemented, Phase 3)
 
-Documents/images are private object storage, never publicly addressable; served only via
-short-lived signed URLs after a permission check. Executable uploads, double extensions, and
-MIME-type mismatches are rejected; size limits are enforced.
+Documents are stored on a dedicated private `documents` disk (local for now — see
+`config/filesystems.php` and `docs/DEPLOYMENT.md`; swappable to S3-compatible storage by
+changing that one config block, never application code), under a random ULID filename — the
+client-supplied filename is kept only as display metadata, never used as the stored path.
+Uploads are validated by actual file content (`mimes:pdf,jpg,jpeg,png` via PHP's fileinfo, not
+the client-supplied extension), capped at 10MB, and rejected if the filename has more than one
+extension (`App\Http\Requests\Api\V1\Providers\UploadDocumentRequest`).
+
+There is no `Storage::temporaryUrl()` — instead every download goes through
+`App\Http\Controllers\Api\V1\DocumentController@download`, which checks, fresh on every
+request, whether the caller owns the underlying record or holds `documents.view` (or
+`documents.view_sensitive` for the `identity` document type) before streaming the file. A
+previously-valid link never stays valid after a permission change, because there is no link —
+only an authenticated, re-checked request.
 
 ## Logging
 

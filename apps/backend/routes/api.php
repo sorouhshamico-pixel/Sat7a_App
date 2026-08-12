@@ -1,12 +1,17 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\DocumentVerificationController;
+use App\Http\Controllers\Api\V1\Admin\ProviderController as AdminProviderController;
 use App\Http\Controllers\Api\V1\Admin\RoleController;
 use App\Http\Controllers\Api\V1\Admin\UserRoleController;
 use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
 use App\Http\Controllers\Api\V1\Auth\OtpController;
 use App\Http\Controllers\Api\V1\Auth\SessionController;
 use App\Http\Controllers\Api\V1\Auth\TwoFactorController;
+use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\Providers\ProviderController;
+use App\Http\Controllers\Api\V1\Providers\ProviderDocumentController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -61,6 +66,28 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         });
     });
 
+    // Provider self-service (registration is public; everything else
+    // requires a fully-privileged provider_staff token — see
+    // docs/COMPLIANCE.md §Provider compliance lifecycle).
+    Route::prefix('providers')->name('providers.')->group(function (): void {
+        Route::post('/register', [ProviderController::class, 'register'])
+            ->middleware('throttle:otp-send')
+            ->name('register');
+
+        Route::middleware(['auth:sanctum', 'abilities:*'])->group(function (): void {
+            Route::get('/me', [ProviderController::class, 'show'])->name('me.show');
+            Route::patch('/me', [ProviderController::class, 'update'])->name('me.update');
+            Route::get('/me/documents', [ProviderDocumentController::class, 'index'])->name('me.documents.index');
+            Route::post('/me/documents', [ProviderDocumentController::class, 'store'])->name('me.documents.store');
+        });
+    });
+
+    // Shared document download — access is permission/ownership-checked
+    // inside the controller (see docs/SECURITY.md §File uploads).
+    Route::get('/documents/{document}/download', [DocumentController::class, 'download'])
+        ->middleware(['auth:sanctum', 'abilities:*'])
+        ->name('documents.download');
+
     // Admin/platform management. Fully-privileged token required, plus the
     // specific permission for each action (see docs/ROLES_PERMISSIONS.md).
     // Role changes are audited without exception — see
@@ -72,6 +99,26 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/users/{user}/roles', [UserRoleController::class, 'index'])->name('users.roles.index');
             Route::post('/users/{user}/roles', [UserRoleController::class, 'store'])->name('users.roles.store');
             Route::delete('/users/{user}/roles/{roleName}', [UserRoleController::class, 'destroy'])->name('users.roles.destroy');
+        });
+
+        Route::middleware('can:providers.view')->group(function (): void {
+            Route::get('/providers', [AdminProviderController::class, 'index'])->name('providers.index');
+            Route::get('/providers/{provider}', [AdminProviderController::class, 'show'])->name('providers.show');
+        });
+
+        Route::post('/providers/{provider}/approve', [AdminProviderController::class, 'approve'])
+            ->middleware('can:providers.approve')
+            ->name('providers.approve');
+        Route::post('/providers/{provider}/reject', [AdminProviderController::class, 'reject'])
+            ->middleware('can:providers.approve')
+            ->name('providers.reject');
+        Route::post('/providers/{provider}/suspend', [AdminProviderController::class, 'suspend'])
+            ->middleware('can:providers.suspend')
+            ->name('providers.suspend');
+
+        Route::middleware('can:documents.verify')->group(function (): void {
+            Route::post('/documents/{document}/verify', [DocumentVerificationController::class, 'verify'])->name('documents.verify');
+            Route::post('/documents/{document}/reject', [DocumentVerificationController::class, 'reject'])->name('documents.reject');
         });
     });
 });

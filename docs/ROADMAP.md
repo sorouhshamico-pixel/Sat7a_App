@@ -11,8 +11,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 |---|---|---|
 | 0 | Architecture & Foundation | Done |
 | 1 | Authentication & Security Foundation | Done |
-| 2 | Roles & Permissions | **In progress** |
-| 3 | Provider Onboarding | Not started |
+| 2 | Roles & Permissions | Done |
+| 3 | Provider Onboarding | **In progress** |
 | 4 | Fleet & Drivers | Not started |
 | 5 | Customer Profiles & Vehicles | Not started |
 | 6 | Maps & Location Foundation | Not started |
@@ -91,6 +91,25 @@ public admin registration endpoint). See `docs/ROLES_PERMISSIONS.md` for the ful
 Not yet in this phase: provider-scoped role enforcement (a fleet manager restricted to *their*
 provider) — that needs the Provider domain from Phase 3/4; Policy classes for domain models,
 since no domain models with ownership exist yet beyond User/Role/Permission themselves.
+
+## Phase 3 — Provider Onboarding (this phase)
+
+Implemented: `providers` and (polymorphic) `documents` tables; provider registration
+(`POST /api/v1/providers/register`) that creates the provider_staff owner user, the pending
+`Provider` row, and the `provider_owner` role assignment in one transaction, then sends an OTP —
+the applicant completes authentication via the existing Phase 1 OTP-verify endpoint, so
+Phase 1 auth code needed zero changes. Provider profile view/update
+(`GET`/`PATCH /api/v1/providers/me`); private document upload/list/download
+(`/api/v1/providers/me/documents`, `/api/v1/documents/{document}/download`) with content-based
+MIME validation, size limits, and double-extension rejection. Admin compliance endpoints under
+`/api/v1/admin/providers` and `/api/v1/admin/documents` (list/filter, approve, reject, suspend,
+verify, reject), every mutating action gated by a permission and audited. A daily scheduled
+command (`compliance:check-document-expiry`) alerts on documents expiring in 30/15/7/1 days or
+already expired. See `docs/COMPLIANCE.md` for details.
+
+Not yet in this phase: fleet/drivers (Phase 4, which will also let a provider_staff user who
+isn't the owner — a fleet manager or driver — resolve "their" provider); bank accounts
+(Phase 14); real notification delivery for expiry alerts (Phase 16, logged for now).
 
 ## Definition of Done for every phase
 
