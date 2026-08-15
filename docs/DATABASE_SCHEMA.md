@@ -96,10 +96,21 @@ Haversine query against `tow_trucks.current_latitude`/`current_longitude` instea
   before storage), `processed_at`. Written only by
   `App\Domain\Payments\Actions\ProcessPaymentWebhookAction` (Phase 12).
 - `ledger_entries` — append-only financial ledger: `order_id`/`payment_id`/`provider_id`
-  (nullable), `type` (`customer_payment`/`platform_commission`/`gateway_fee`/`provider_payable`/
-  `refund`/`adjustment`/`settlement`), `direction` (`credit`/`debit`), `amount`, `currency`,
-  `description`. A provider's balance is derived by summing these, never stored as a running
-  total. See `docs/SETTLEMENT_ARCHITECTURE.md` (Phase 13).
+  (nullable), `settlement_batch_id` (nullable FK, the one narrow mutability exception — see
+  `docs/SETTLEMENT_ARCHITECTURE.md` §Ledger), `type` (`customer_payment`/`platform_commission`/
+  `gateway_fee`/`provider_payable`/`refund`/`adjustment`/`settlement`), `direction`
+  (`credit`/`debit`), `amount`, `currency`, `description`. A provider's balance is derived by
+  summing these, never stored as a running total. See `docs/SETTLEMENT_ARCHITECTURE.md`
+  (Phase 13).
+- `settlement_batches` — `provider_id`, `period_start`/`period_end` (informational labels, not a
+  strict inclusion filter), `gross`/`commission`/`deductions` (unsigned, informational), `net`
+  (**signed** — can be negative in principle), `status` (state machine, see
+  `App\Domain\Ledger\Enums\SettlementStatus`), `approved_by` (nullable FK user), `paid_at`,
+  `reference`, `failure_reason`. See `docs/SETTLEMENT_ARCHITECTURE.md` (Phase 14).
+- `provider_bank_accounts` — one per provider (`provider_id` unique): `account_holder_name`,
+  `iban` (encrypted at rest via Laravel's `encrypted` cast), `bank_name`, `verified`,
+  `verified_by` (nullable FK user), `verified_at`. See `docs/SETTLEMENT_ARCHITECTURE.md` §Bank
+  account security (Phase 14).
 
 ## Engine
 
@@ -119,15 +130,23 @@ PostgreSQL + PostGIS. No other database engine is used for the system of record.
 - **Time**: `timestamptz` columns stored in UTC — use Laravel's `timestampTz()`, never the
   timezone-naive `timestamp()`, for **any** column populated via a DB-side default
   (`->useCurrent()`). A `timestamp()` (no tz) column stores `CURRENT_TIMESTAMP` as naive
-  wall-clock text in whatever timezone the Postgres *session* happens to be configured for —
-  this local dev server's session timezone is `Asia/Riyadh` (`+03`), so every affected column
-  was silently reading back 3 hours ahead of true UTC (found and fixed in Phase 13, see
-  `docs/SETTLEMENT_ARCHITECTURE.md` §A real bug found and fixed while building this, after it
-  broke a pending-vs-available balance cutoff comparison). This risk doesn't apply to a column
-  Eloquent populates from PHP (standard `$timestamps`, or an explicitly-assigned Carbon value) —
-  only to `useCurrent()`/raw-SQL-default columns, since PHP-computed values are already correct
-  UTC strings regardless of the DB session's timezone. Display conversion to `Asia/Riyadh`
-  happens at the presentation layer, never by shifting stored values.
+  wall-clock text in whatever timezone the Postgres *session* happens to be configured for, so an
+  affected column can silently read back shifted by that session's UTC offset (found and fixed in
+  Phase 13, see `docs/SETTLEMENT_ARCHITECTURE.md` §A real bug found and fixed while building
+  this, after it broke a pending-vs-available balance cutoff comparison). This risk doesn't apply
+  to a column Eloquent populates from PHP (standard `$timestamps`, or an explicitly-assigned
+  Carbon value) — only to `useCurrent()`/raw-SQL-default columns, since PHP-computed values are
+  already correct UTC strings regardless of the DB session's timezone.
+
+  The same session-timezone mismatch has a second, read-side form: binding a PHP `Carbon` (UTC)
+  value into a `WHERE some_timestamptz_column <= ?` query gets misinterpreted by Postgres using
+  its *session* timezone, since Laravel's PDO driver sends the value as a zone-less string (found
+  and fixed in Phase 14, see `docs/SETTLEMENT_ARCHITECTURE.md` §A second real bug). Fixed at the
+  connection level — `config/database.php`'s `pgsql` connection pins `'timezone' => 'UTC'`, which
+  Laravel applies via `SET TIME ZONE 'UTC'` on every new connection — rather than per-query, so
+  it protects every current and future comparison, not just one call site. Display conversion to
+  `Asia/Riyadh` happens at the presentation layer, never by shifting stored values or the session
+  timezone away from UTC.
 - **Geography**: PostGIS `geography(Point, 4326)` for point locations (pickup, dropoff, live
   driver position, provider base), with a GiST spatial index. Radius/nearby queries use PostGIS
   functions (`ST_DWithin`, `ST_Distance`) — never manual Haversine math in PHP.

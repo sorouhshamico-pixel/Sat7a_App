@@ -13,11 +13,16 @@ use App\Domain\Providers\Models\Provider;
  * - `pending_balance`: earned within the last `ledger.pending_hold_hours`
  *   — a short fraud/dispute-protection window before money is
  *   considered clear.
- * - `available_balance`: earned outside that window, not yet settled —
- *   this is what Phase 14 (Settlements) will actually pay out.
- * - `settled_balance`: sum of `settlement` entries — always `0` today,
- *   since nothing creates one until Phase 14 exists, but the formula is
- *   ready for when it does.
+ * - `available_balance`: currently owed and outside the pending window —
+ *   this is what a new settlement batch (Phase 14) can actually pay out.
+ * - `settled_balance`: lifetime total already paid out via `settlement`
+ *   entries (see App\Domain\Ledger\Actions\AdvanceSettlementStatusAction,
+ *   which records one as a debit for `net` when a batch reaches `paid`) —
+ *   purely informational, not subtracted a second time from
+ *   `available_balance` since the debit already reduced `total_payable`.
+ * - `total_payable`: the CURRENT amount owed to the provider right now —
+ *   every entry ever recorded, netted together, so a `settlement` debit
+ *   here already cancels out the batch of entries it paid off.
  *
  * A negative balance is valid and expected — see the cash-payment case
  * in RecordPaymentLedgerEntriesAction, where a provider who already
@@ -49,7 +54,10 @@ class GetProviderBalanceAction
             $totalPayable += $signed;
 
             if ($entry->type === LedgerEntryType::Settlement) {
-                $settled += $signed;
+                // Always a debit (see AdvanceSettlementStatusAction) — flip
+                // the sign so this reads as a positive lifetime "paid so
+                // far" figure rather than the negative balance-impact.
+                $settled += -$signed;
             } elseif ($entry->created_at->greaterThanOrEqualTo($cutoff)) {
                 $pending += $signed;
             }
@@ -57,7 +65,7 @@ class GetProviderBalanceAction
 
         return [
             'pending_balance' => $pending,
-            'available_balance' => $totalPayable - $pending - $settled,
+            'available_balance' => $totalPayable - $pending,
             'settled_balance' => $settled,
             'total_payable' => $totalPayable,
         ];

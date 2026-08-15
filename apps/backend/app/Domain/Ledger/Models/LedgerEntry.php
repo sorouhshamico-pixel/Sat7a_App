@@ -14,10 +14,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
- * Immutable, append-only — see docs/DATABASE_SCHEMA.md §Immutability and
- * docs/SETTLEMENT_ARCHITECTURE.md. Written only by
- * App\Domain\Ledger\Actions\RecordPaymentLedgerEntriesAction and
- * RecordRefundLedgerEntryAction, never updated or deleted.
+ * The financial facts (`type`/`direction`/`amount`/...) are immutable,
+ * append-only — see docs/DATABASE_SCHEMA.md §Immutability. Written only
+ * by App\Domain\Ledger\Actions\RecordPaymentLedgerEntriesAction and
+ * RecordRefundLedgerEntryAction, never updated or deleted. The one
+ * exception is `settlement_batch_id`, a bookkeeping marker (not a
+ * financial fact) set when a settlement batch claims the entry and
+ * cleared back to `null` if that batch later fails or is cancelled — see
+ * App\Domain\Ledger\Actions\AdvanceSettlementStatusAction and
+ * docs/SETTLEMENT_ARCHITECTURE.md.
  *
  * @property LedgerEntryType $type
  * @property LedgerEntryDirection $direction
@@ -74,5 +79,13 @@ class LedgerEntry extends Model
     public function provider(): BelongsTo
     {
         return $this->belongsTo(Provider::class);
+    }
+
+    /**
+     * @return BelongsTo<SettlementBatch, $this>
+     */
+    public function settlementBatch(): BelongsTo
+    {
+        return $this->belongsTo(SettlementBatch::class);
     }
 }

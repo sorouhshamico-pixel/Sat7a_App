@@ -97,6 +97,20 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Pins the Postgres session timezone to UTC, matching
+            // `config('app.timezone')`. Without this, Laravel's PDO driver
+            // binds Carbon values (formatted with no UTC offset) into
+            // `timestamptz` query parameters, and Postgres silently
+            // interprets them using its *session* timezone instead — which
+            // defaults to this server's local zone (Asia/Riyadh, +03) if
+            // unset. That shifts every `WHERE created_at <= ?`-style
+            // comparison by 3 hours, a read-side counterpart to the
+            // useCurrent()-default write-side bug already documented in
+            // docs/DATABASE_SCHEMA.md §Time. Found while building Phase 14
+            // (App\Domain\Ledger\Actions\GenerateSettlementBatchAction's
+            // eligibility query silently excluded entries it should have
+            // claimed) — see docs/SETTLEMENT_ARCHITECTURE.md.
+            'timezone' => 'UTC',
         ],
 
         'sqlsrv' => [

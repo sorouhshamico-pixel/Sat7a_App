@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\BankAccountController as AdminBankAccountController;
 use App\Http\Controllers\Api\V1\Admin\DispatchController as AdminDispatchController;
 use App\Http\Controllers\Api\V1\Admin\DocumentVerificationController;
 use App\Http\Controllers\Api\V1\Admin\DriverController as AdminDriverController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Api\V1\Admin\PaymentController as AdminPaymentControlle
 use App\Http\Controllers\Api\V1\Admin\PricingController as AdminPricingController;
 use App\Http\Controllers\Api\V1\Admin\ProviderController as AdminProviderController;
 use App\Http\Controllers\Api\V1\Admin\RoleController;
+use App\Http\Controllers\Api\V1\Admin\SettlementController as AdminSettlementController;
 use App\Http\Controllers\Api\V1\Admin\TowTruckController as AdminTowTruckController;
 use App\Http\Controllers\Api\V1\Admin\UserRoleController;
 use App\Http\Controllers\Api\V1\Auth\AdminAuthController;
@@ -28,11 +30,13 @@ use App\Http\Controllers\Api\V1\Maps\MapsController;
 use App\Http\Controllers\Api\V1\Orders\OrderController;
 use App\Http\Controllers\Api\V1\Orders\PaymentController;
 use App\Http\Controllers\Api\V1\Pricing\QuoteController;
+use App\Http\Controllers\Api\V1\Providers\BankAccountController;
 use App\Http\Controllers\Api\V1\Providers\LedgerController;
 use App\Http\Controllers\Api\V1\Providers\ProviderController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDocumentController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDriverController;
 use App\Http\Controllers\Api\V1\Providers\ProviderFleetController;
+use App\Http\Controllers\Api\V1\Providers\SettlementController;
 use App\Http\Controllers\Api\V1\Webhooks\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -130,6 +134,17 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             // of this group.
             Route::get('/me/balance', [LedgerController::class, 'balance'])->name('me.balance');
             Route::get('/me/ledger', [LedgerController::class, 'index'])->name('me.ledger.index');
+
+            // Bank account & settlements — see
+            // docs/SETTLEMENT_ARCHITECTURE.md §Bank account security. No
+            // extra permission gate: always the caller's own provider,
+            // and ProviderBankAccountResource itself only reveals the
+            // unmasked IBAN to the owning provider or a holder of
+            // settlements.view_bank_details.
+            Route::get('/me/bank-account', [BankAccountController::class, 'show'])->name('me.bank-account.show');
+            Route::put('/me/bank-account', [BankAccountController::class, 'update'])->name('me.bank-account.update');
+            Route::get('/me/settlements', [SettlementController::class, 'index'])->name('me.settlements.index');
+            Route::get('/me/settlements/{settlementPublicId}', [SettlementController::class, 'show'])->name('me.settlements.show');
         });
     });
 
@@ -300,6 +315,21 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::middleware('can:settlements.view')->group(function (): void {
             Route::get('/providers/{provider}/balance', [AdminLedgerController::class, 'balance'])->name('providers.balance');
             Route::get('/providers/{provider}/ledger', [AdminLedgerController::class, 'index'])->name('providers.ledger');
+            Route::get('/settlements', [AdminSettlementController::class, 'index'])->name('settlements.index');
+            Route::get('/settlements/{settlement}', [AdminSettlementController::class, 'show'])->name('settlements.show');
+        });
+
+        // Bank account & the whole settlement lifecycle (generate, then
+        // submit/approve/process/paid/fail/cancel via the single generic
+        // status endpoint — mirrors the AdvanceTripStatusAction pattern)
+        // all reuse `settlements.approve`, the same choice already made
+        // for the whole dispatch-override workflow above (see
+        // docs/ROLES_PERMISSIONS.md).
+        Route::middleware('can:settlements.approve')->group(function (): void {
+            Route::get('/providers/{provider}/bank-account', [AdminBankAccountController::class, 'show'])->name('providers.bank-account.show');
+            Route::post('/providers/{provider}/bank-account/verify', [AdminBankAccountController::class, 'verify'])->name('providers.bank-account.verify');
+            Route::post('/providers/{provider}/settlements', [AdminSettlementController::class, 'store'])->name('providers.settlements.store');
+            Route::post('/settlements/{settlement}/status', [AdminSettlementController::class, 'advance'])->name('settlements.status');
         });
     });
 });

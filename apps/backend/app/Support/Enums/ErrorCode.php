@@ -49,4 +49,9 @@ enum ErrorCode: string
     case PaymentNotRefundable = 'PAYMENT_NOT_REFUNDABLE';
     case RefundExceedsAvailableAmount = 'REFUND_EXCEEDS_AVAILABLE_AMOUNT';
     case WebhookSignatureInvalid = 'WEBHOOK_SIGNATURE_INVALID';
+
+    case NoEligibleEarnings = 'NO_ELIGIBLE_EARNINGS';
+    case SettlementInvalidTransition = 'SETTLEMENT_INVALID_TRANSITION';
+    case BankAccountNotVerified = 'BANK_ACCOUNT_NOT_VERIFIED';
+    case BankAccountNotFound = 'BANK_ACCOUNT_NOT_FOUND';
 }

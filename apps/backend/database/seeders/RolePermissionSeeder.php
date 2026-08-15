@@ -74,6 +74,7 @@ class RolePermissionSeeder extends Seeder
                 $p::PaymentsRefund->value,
                 $p::SettlementsView->value,
                 $p::SettlementsApprove->value,
+                $p::SettlementsViewBankDetails->value,
                 $p::PricingView->value,
             ],
             RoleName::ComplianceOfficer->value => [

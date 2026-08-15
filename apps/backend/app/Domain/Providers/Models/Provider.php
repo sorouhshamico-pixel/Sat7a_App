@@ -6,6 +6,8 @@ use App\Domain\Compliance\Models\Document;
 use App\Domain\Drivers\Models\Driver;
 use App\Domain\Fleet\Models\TowTruck;
 use App\Domain\Ledger\Models\LedgerEntry;
+use App\Domain\Ledger\Models\ProviderBankAccount;
+use App\Domain\Ledger\Models\SettlementBatch;
 use App\Domain\Providers\Enums\ProviderStatus;
 use App\Models\User;
 use App\Support\Concerns\HasUlid;
@@ -13,6 +15,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
 
@@ -82,5 +85,21 @@ class Provider extends Model
     public function ledgerEntries(): HasMany
     {
         return $this->hasMany(LedgerEntry::class);
+    }
+
+    /**
+     * @return HasOne<ProviderBankAccount, $this>
+     */
+    public function bankAccount(): HasOne
+    {
+        return $this->hasOne(ProviderBankAccount::class);
+    }
+
+    /**
+     * @return HasMany<SettlementBatch, $this>
+     */
+    public function settlementBatches(): HasMany
+    {
+        return $this->hasMany(SettlementBatch::class);
     }
 }

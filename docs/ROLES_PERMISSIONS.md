@@ -71,7 +71,7 @@ fleet.manage                fleet.suspend
 
 payments.view              payments.refund
 
-settlements.view           settlements.approve
+settlements.view           settlements.approve       settlements.view_bank_details
 
 documents.view              documents.view_sensitive documents.verify
 
@@ -154,6 +154,25 @@ the same "seed the full catalog early, enforce it as each phase lands" approach 
 followed in Phase 9. Provider-facing ledger/balance endpoints
 (`/api/v1/providers/me/balance`/`.../ledger`) are ownership-scoped like every other `/me`
 endpoint — no permission gate, since a provider only ever sees their own.
+
+## Settlements (implemented, Phase 14)
+
+The entire settlement-batch lifecycle — generate, then every status transition (submit, approve,
+process, paid, fail, cancel) — reuses `settlements.approve` end to end, rather than minting a new
+permission per action. This is the same choice already made for the dispatch-override workflow in
+Phase 9 (`orders.assign` reused for both retry and manual-assign): a single permission for a
+whole admin workflow, not one per step. `settlements.view` continues to gate read-only listing
+(`GET /api/v1/admin/settlements`, `.../settlements/{settlement}`), unchanged from Phase 13.
+
+`settlements.view_bank_details` is new — a provider's bank account is "highly sensitive" data
+(`docs/SECURITY.md` §Data classification); `settlements.view`/`settlements.approve` alone only
+ever surface a masked IBAN (`App\Http\Resources\Api\V1\ProviderBankAccountResource`), the same
+"general access vs. an extra permission for the sensitive field" split already established by
+`documents.view_sensitive` in Phase 6. Seeded to `finance_officer` alongside the other settlement
+permissions; `admin`/`super_admin` inherit it automatically via their "all permissions" filters.
+Provider-facing bank-account endpoints (`/api/v1/providers/me/bank-account`) are ownership-scoped
+like every other `/me` endpoint, and the owning provider always sees their own unmasked IBAN
+regardless of this permission.
 
 ## Audit logging (implemented)
 

@@ -22,8 +22,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 10 | Realtime | Done |
 | 11 | Live Location Tracking | Done |
 | 12 | Payments | Done |
-| 13 | Financial Ledger & Commission | **Done** |
-| 14 | Settlements | Not started |
+| 13 | Financial Ledger & Commission | Done |
+| 14 | Settlements | **Done** |
 | 15 | Reviews & Disputes | Not started |
 | 16 | Notifications | Not started |
 | 17 | Operations Command Center | Not started |
@@ -417,6 +417,59 @@ that doesn't depend on the DB server being configured correctly. See
 
 Not yet in this phase: settlement batches / actual payouts (Phase 14); bank account
 storage/masking (Phase 14); anything that creates a `settlement`-type ledger entry.
+
+## Phase 14 — Settlements (this phase)
+
+Implemented: `settlement_batches` and `provider_bank_accounts`
+(`App\Domain\Ledger\Models\SettlementBatch`/`ProviderBankAccount`), plus the actions that make
+Phase 13's ledger actually payable out.
+
+`App\Domain\Ledger\Actions\GenerateSettlementBatchAction`
+(`POST /api/v1/admin/providers/{provider}/settlements`) claims every currently-unclaimed,
+past-hold-window, balance-affecting ledger entry dated on or before the batch's `period_end` —
+deliberately **no lower bound** on `created_at`, so an entry a previous batch missed is always
+swept into the next one rather than permanently stuck. `App\Domain\Ledger\Actions\
+AdvanceSettlementStatusAction` is the single choke point for every status transition (mirrors
+`AdvanceTripStatusAction`/`PaymentStateMachine`): `draft` → `pending_approval` → `approved` →
+`processing` → `paid` | `failed` | `cancelled`
+(`App\Domain\Ledger\Enums\SettlementStatus`). Reaching `paid` requires a *verified* bank account
+and creates the batch's one `settlement`-type ledger entry (a debit of `net`) — the entry that
+finally makes `GetProviderBalanceAction`'s `settled_balance` non-zero and drops
+`available_balance` back toward `0`. Reaching `failed`/`cancelled` releases every entry the batch
+had claimed back to unclaimed. The whole lifecycle — generate through paid/failed/cancelled —
+reuses the `settlements.approve` permission end to end, the same "one permission for a whole
+admin workflow" choice already made for dispatch overrides in Phase 9.
+
+Bank accounts (`App\Domain\Ledger\Actions\SetProviderBankAccountAction`/
+`VerifyProviderBankAccountAction`): IBAN is encrypted at rest and masked in every response except
+to the owning provider or a holder of the new `settlements.view_bank_details` permission (seeded
+to `finance_officer`) — the same "extra permission for a highly-sensitive field" shape as
+`documents.view_sensitive`. Any change to the account resets `verified` to `false`, requiring
+re-verification before another settlement can be marked `paid` against it. Both actions are
+audit-logged with the masked IBAN only — the raw value is never written to the audit trail.
+
+**A second real, previously-invisible timezone bug was found and fixed while building this** —
+distinct from Phase 13's. `GenerateSettlementBatchAction` was the first code in the project to
+filter a query by a PHP-computed cutoff *in SQL* rather than fetching rows and comparing in PHP,
+and that exposed that the local Postgres server's session timezone (`Asia/Riyadh`) still didn't
+match `config('app.timezone')` (`UTC`) even after Phase 13's column-type fix — Laravel binds a
+`Carbon` value as a zone-less string, and Postgres interprets it using the *session* timezone
+rather than assuming UTC, silently shifting comparisons by 3 hours. Fixed at the connection level
+this time — `config/database.php`'s `pgsql` connection now pins `'timezone' => 'UTC'` — so every
+current and future query is protected, not just this call site. See
+`docs/SETTLEMENT_ARCHITECTURE.md` §A second real bug and `docs/DATABASE_SCHEMA.md` §Time.
+
+A smaller bug in `GetProviderBalanceAction`'s formula was also caught and fixed here, before any
+real `settlement` entry had ever existed to exercise it: `available_balance` was computed as
+`total_payable - pending - settled`, double-subtracting the already-paid amount (since the
+`settlement` debit had already reduced `total_payable`). Fixed to `total_payable - pending`, with
+`settled_balance` reported as a positive lifetime-paid figure rather than fed back into the
+subtraction.
+
+Not yet in this phase: an automated settlement-generation schedule (batches are generated
+on-demand by finance staff, not on a cron); an actual bank-transfer/payout gateway integration
+(marking `paid` records the ledger entry and a free-text `reference`, but nothing calls out to a
+real payment rail).
 
 ## Definition of Done for every phase
 

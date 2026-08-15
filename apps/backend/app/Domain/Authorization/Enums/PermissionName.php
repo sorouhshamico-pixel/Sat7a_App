@@ -40,6 +40,12 @@ enum PermissionName: string
     case SettlementsView = 'settlements.view';
     case SettlementsApprove = 'settlements.approve';
 
+    // A provider's own bank details are "highly sensitive" (see
+    // docs/SECURITY.md §Data classification) — `settlements.view` alone
+    // only ever shows a masked IBAN to platform staff; this permission is
+    // required to see the unmasked value.
+    case SettlementsViewBankDetails = 'settlements.view_bank_details';
+
     case DocumentsView = 'documents.view';
     case DocumentsViewSensitive = 'documents.view_sensitive';
     case DocumentsVerify = 'documents.verify';

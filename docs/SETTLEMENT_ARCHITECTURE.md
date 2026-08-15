@@ -2,9 +2,8 @@
 
 ## Status
 
-Phase 13 (Financial Ledger & Commission) is implemented — `App\Domain\Ledger`. Phase 14
-(Settlement batches, the actual payout mechanism) is still a design sketch, recorded here since
-Phase 0 so the accounting model was agreed before payments landed.
+Phase 13 (Financial Ledger & Commission) and Phase 14 (Settlement batches & bank account
+security — the actual payout mechanism) are both implemented — `App\Domain\Ledger`.
 
 ## Ledger, not a running balance (implemented)
 
@@ -57,14 +56,18 @@ discount attribution once one does.
 
 ## Provider balance (implemented)
 
-`App\Domain\Ledger\Actions\GetProviderBalanceAction` exposes three buckets:
+`App\Domain\Ledger\Actions\GetProviderBalanceAction` exposes four figures:
 
+- `total_payable` — the CURRENT amount owed to the provider right now: every balance-affecting
+  entry ever recorded, netted together. A `settlement` debit (see below) already cancels out the
+  batch of entries it paid off, so this correctly drops back toward `0` once a payout completes.
 - `pending_balance` — earned within the last `ledger.pending_hold_hours` (default `24`,
   configurable) — a short fraud/dispute-protection window before money is considered clear.
-- `available_balance` — earned outside that window, not yet settled. This is what Phase 14 will
-  actually pay out.
-- `settled_balance` — sum of `settlement` entries. Always `0` today, since nothing creates one
-  until Phase 14 exists, but the formula is ready for when it does.
+- `available_balance` = `total_payable - pending_balance` — currently owed and outside the
+  pending window. This is what a new settlement batch can actually claim and pay out.
+- `settled_balance` — lifetime total already paid out via `settlement` entries. Purely
+  informational; **not** subtracted a second time from `available_balance`, since the `settlement`
+  debit already reduced `total_payable` (see "A second real bug" below).
 
 A **negative** balance is valid and expected — see the cash-payment case above, where a provider
 who already collected cash directly ends up owing the platform.
@@ -95,17 +98,87 @@ session's timezone setting, a self-contained fix that doesn't depend on server c
 being correct (see `docs/DATABASE_SCHEMA.md` §Time). The local dev database was rebuilt
 (`migrate:fresh`) to pick up the corrected column types, since it held no data worth preserving.
 
-## Settlement batches (design — Phase 14)
+## A second real bug found and fixed while building Phase 14
+
+The Phase 13 fix above covered the *write* side (a `useCurrent()` default losing its zone). Phase
+14's `App\Domain\Ledger\Actions\GenerateSettlementBatchAction` was the first code in the project
+to filter a query by a PHP-computed cutoff *in SQL* (`WHERE created_at <= ?`) rather than fetching
+rows and comparing in PHP — and that surfaced a second, distinct instance of the same underlying
+misconfiguration: the local Postgres server's session timezone is `Asia/Riyadh` (`+03`), while
+`config('app.timezone')` (and every Carbon value in the app) is `UTC`. Laravel's PDO Postgres
+driver binds a `Carbon` value as a plain string with no UTC offset (e.g. `2026-08-16 00:00:00`);
+Postgres, casting that string to `timestamptz`, interprets a zone-less string using the *session*
+timezone rather than assuming UTC — silently shifting every such comparison by 3 hours. A batch's
+eligibility window (`created_at <= periodEnd`, `created_at <= holdCutoff`) was therefore excluding
+entries it should have claimed.
+
+Fixed at the root — not per-query — by pinning the Postgres session timezone to `UTC` in
+`config/database.php`'s `pgsql` connection (`'timezone' => 'UTC'`), which makes Laravel issue
+`SET TIME ZONE 'UTC'` on every new connection. This makes the session timezone agree with
+`app.timezone` for every current and future query, not just this one, and is why the Phase 13 fix
+(switching columns to `timestampTz()`) was necessary but not sufficient on its own — it fixed
+values *written* by the database, not values *read by* a query that binds a PHP-side Carbon
+against a mismatched session timezone.
+
+## Settlement batches (implemented)
+
+`settlement_batches` (`App\Domain\Ledger\Models\SettlementBatch`):
 
 ```text
 provider_id, period_start, period_end, gross, commission, deductions, net,
-status, approved_by, paid_at, reference
+status, approved_by, paid_at, reference, failure_reason
 ```
 
-States: `draft`, `pending_approval`, `approved`, `processing`, `paid`, `failed`, `cancelled`.
+`net` is **signed** (can be negative in principle, though `GenerateSettlementBatchAction` never
+creates a batch with `net <= 0` — there is nothing to pay out). `gross`/`commission`/`deductions`
+are informational sums derived from the same underlying payments (for display only); `net` is the
+only figure that matters once the batch is `paid`.
 
-## Bank account security (design — Phase 14)
+States: `draft` → `pending_approval` → `approved` → `processing` → `paid` | `failed` |
+`cancelled` (`App\Domain\Ledger\Enums\SettlementStatus`, the same
+`allowedTransitions()`/`canTransitionTo()` shape as `OrderStatus`/`PaymentStatus`). The single
+choke point for every transition is `App\Domain\Ledger\Actions\AdvanceSettlementStatusAction`
+(mirrors `AdvanceTripStatusAction`/`PaymentStateMachine`):
 
-IBAN is masked in general UI; full value requires an elevated permission. Any change to a
-provider's bank account is audit-logged and subject to additional verification (see
-`docs/SECURITY.md`, `docs/ROLES_PERMISSIONS.md`).
+- **Generation** (`App\Domain\Ledger\Actions\GenerateSettlementBatchAction`,
+  `POST /api/v1/admin/providers/{provider}/settlements`): claims every currently-unclaimed
+  (`settlement_batch_id IS NULL`), past-hold-window, balance-affecting ledger entry
+  (`provider_payable`/`refund`/`adjustment`) dated on or before `period_end` — **no lower bound**
+  on `created_at`. `period_start`/`period_end` are informational labels, not a strict inclusion
+  filter: an old entry a previous batch happened to miss is always swept into the next one rather
+  than silently lost. Throws `NO_ELIGIBLE_EARNINGS` if nothing qualifies or the computed `net` is
+  not positive.
+- **Reaching `paid`**: creates the batch's one and only `settlement`-type ledger entry — always a
+  **debit** of `net` — which is what makes `total_payable`/`available_balance` correctly drop back
+  toward `0` (see "Provider balance" above). Requires a *verified* bank account on file
+  (`BANK_ACCOUNT_NOT_VERIFIED` / `BANK_ACCOUNT_NOT_FOUND` otherwise).
+- **Reaching `failed`/`cancelled`** (`SettlementStatus::releasesClaimedEntries()`): releases every
+  entry the batch had claimed back to `settlement_batch_id = null`, so a future batch can claim
+  them again.
+
+The whole lifecycle reuses the `settlements.approve` permission end to end (generate through
+paid/failed/cancelled) rather than minting a permission per action, the same choice already made
+for the dispatch-override workflow in Phase 9.
+
+## Bank account security (implemented)
+
+`provider_bank_accounts` (`App\Domain\Ledger\Models\ProviderBankAccount`), one per provider:
+
+```text
+provider_id, account_holder_name, iban, bank_name, verified, verified_by, verified_at
+```
+
+`iban` is encrypted at rest (Laravel's `encrypted` cast, same mechanism as
+`User.two_factor_secret`). `ProviderBankAccountResource` returns the full value only to the
+owning provider or a holder of the `settlements.view_bank_details` permission (seeded to
+`finance_officer`; `admin`/`super_admin` inherit it automatically) — everyone else sees
+`ProviderBankAccount::maskedIban()`, the same "sensitive field needs an extra permission beyond
+general view" shape as `documents.view_sensitive`.
+
+`App\Domain\Ledger\Actions\SetProviderBankAccountAction` (provider self-service,
+`PUT /api/v1/providers/me/bank-account`) resets `verified` to `false` on **every** change,
+including the first save — an edited IBAN must be re-verified before another settlement can be
+marked `paid` against it. `App\Domain\Ledger\Actions\VerifyProviderBankAccountAction` (admin,
+`POST /api/v1/admin/providers/{provider}/bank-account/verify`) is the only way to flip it back.
+Both actions are audit-logged with the *masked* IBAN only — the raw value, even encrypted, is
+never written to the audit trail.

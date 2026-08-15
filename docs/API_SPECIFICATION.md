@@ -102,6 +102,16 @@ exist yet.
 | GET | `/api/v1/providers/me/ledger` | token ability `*` | Own provider's ledger entries, paginated |
 | GET | `/api/v1/admin/providers/{provider}/balance` | token ability `*` + permission `settlements.view` | Any provider's balance |
 | GET | `/api/v1/admin/providers/{provider}/ledger` | token ability `*` + permission `settlements.view` | Any provider's ledger entries, paginated |
+| GET | `/api/v1/providers/me/bank-account` | token ability `*` | Own provider's bank account (unmasked IBAN) |
+| PUT | `/api/v1/providers/me/bank-account` | token ability `*` | Create/update own provider's bank account; resets `verified` to `false` |
+| GET | `/api/v1/providers/me/settlements` | token ability `*` | Own provider's settlement batches, paginated |
+| GET | `/api/v1/providers/me/settlements/{settlementPublicId}` | token ability `*` | Own provider's settlement batch detail |
+| GET | `/api/v1/admin/providers/{provider}/bank-account` | token ability `*` + permission `settlements.approve` | Any provider's bank account (IBAN masked unless caller also holds `settlements.view_bank_details`) |
+| POST | `/api/v1/admin/providers/{provider}/bank-account/verify` | token ability `*` + permission `settlements.approve` | Marks the provider's bank account verified (audited) |
+| GET | `/api/v1/admin/settlements` | token ability `*` + permission `settlements.view` | Lists/filters all settlement batches, optionally by `provider_id`/`status` |
+| GET | `/api/v1/admin/settlements/{settlement}` | token ability `*` + permission `settlements.view` | Settlement batch detail |
+| POST | `/api/v1/admin/providers/{provider}/settlements` | token ability `*` + permission `settlements.approve` | Generates a new `draft` batch from the provider's eligible, unclaimed earnings (audited) |
+| POST | `/api/v1/admin/settlements/{settlement}/status` | token ability `*` + permission `settlements.approve` | Advances a batch's status (`pending_approval`/`approved`/`processing`/`paid`/`failed`/`cancelled`); creates the payout ledger entry on `paid`, releases claimed entries on `failed`/`cancelled` |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning
