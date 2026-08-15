@@ -24,6 +24,7 @@ class ProviderResource extends JsonResource
             'contact_phone' => $this->contact_phone,
             'contact_email' => $this->contact_email,
             'status' => $this->status->value,
+            'rating' => $this->rating,
             'rejection_reason' => $this->rejection_reason,
             'suspension_reason' => $this->suspension_reason,
             'approved_at' => $this->approved_at,

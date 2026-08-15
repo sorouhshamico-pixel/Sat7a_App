@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\Admin\BankAccountController as AdminBankAccountController;
 use App\Http\Controllers\Api\V1\Admin\DispatchController as AdminDispatchController;
+use App\Http\Controllers\Api\V1\Admin\DisputeController as AdminDisputeController;
 use App\Http\Controllers\Api\V1\Admin\DocumentVerificationController;
 use App\Http\Controllers\Api\V1\Admin\DriverController as AdminDriverController;
 use App\Http\Controllers\Api\V1\Admin\LedgerController as AdminLedgerController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\V1\Admin\PricingController as AdminPricingController;
 use App\Http\Controllers\Api\V1\Admin\ProviderController as AdminProviderController;
+use App\Http\Controllers\Api\V1\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Api\V1\Admin\RoleController;
 use App\Http\Controllers\Api\V1\Admin\SettlementController as AdminSettlementController;
 use App\Http\Controllers\Api\V1\Admin\TowTruckController as AdminTowTruckController;
@@ -18,6 +20,8 @@ use App\Http\Controllers\Api\V1\Auth\OtpController;
 use App\Http\Controllers\Api\V1\Auth\SessionController;
 use App\Http\Controllers\Api\V1\Auth\TwoFactorController;
 use App\Http\Controllers\Api\V1\Customers\CustomerController;
+use App\Http\Controllers\Api\V1\Customers\DisputeController as CustomerDisputeController;
+use App\Http\Controllers\Api\V1\Customers\ReviewController as CustomerReviewController;
 use App\Http\Controllers\Api\V1\Customers\SavedLocationController;
 use App\Http\Controllers\Api\V1\Customers\VehicleController;
 use App\Http\Controllers\Api\V1\DocumentController;
@@ -36,6 +40,7 @@ use App\Http\Controllers\Api\V1\Providers\ProviderController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDocumentController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDriverController;
 use App\Http\Controllers\Api\V1\Providers\ProviderFleetController;
+use App\Http\Controllers\Api\V1\Providers\ReviewController as ProviderReviewController;
 use App\Http\Controllers\Api\V1\Providers\SettlementController;
 use App\Http\Controllers\Api\V1\Webhooks\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -145,6 +150,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::put('/me/bank-account', [BankAccountController::class, 'update'])->name('me.bank-account.update');
             Route::get('/me/settlements', [SettlementController::class, 'index'])->name('me.settlements.index');
             Route::get('/me/settlements/{settlementPublicId}', [SettlementController::class, 'show'])->name('me.settlements.show');
+
+            // Reviews — see docs/REVIEWS_DISPUTES.md. No extra permission
+            // gate: always the caller's own provider.
+            Route::get('/me/reviews', [ProviderReviewController::class, 'index'])->name('me.reviews.index');
         });
     });
 
@@ -203,6 +212,15 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/me/orders/{orderPublicId}/payments', [PaymentController::class, 'store'])
             ->middleware('throttle:payment-create')
             ->name('me.orders.payments.store');
+
+        // Reviews & disputes — see docs/REVIEWS_DISPUTES.md. Same
+        // ownership scoping as every other me/orders/... sub-resource; no
+        // extra permission gate needed.
+        Route::post('/me/orders/{orderPublicId}/review', [CustomerReviewController::class, 'store'])->name('me.orders.review.store');
+        Route::get('/me/orders/{orderPublicId}/review', [CustomerReviewController::class, 'show'])->name('me.orders.review.show');
+        Route::post('/me/orders/{orderPublicId}/dispute', [CustomerDisputeController::class, 'store'])->name('me.orders.dispute.store');
+        Route::get('/me/disputes', [CustomerDisputeController::class, 'index'])->name('me.disputes.index');
+        Route::get('/me/disputes/{disputePublicId}', [CustomerDisputeController::class, 'show'])->name('me.disputes.show');
     });
 
     // Shared document download — access is permission/ownership-checked
@@ -331,5 +349,23 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/providers/{provider}/settlements', [AdminSettlementController::class, 'store'])->name('providers.settlements.store');
             Route::post('/settlements/{settlement}/status', [AdminSettlementController::class, 'advance'])->name('settlements.status');
         });
+
+        // Reviews — reuses `providers.view`, since this is read-only
+        // information about a provider, not a distinct workflow (see
+        // docs/REVIEWS_DISPUTES.md).
+        Route::get('/providers/{provider}/reviews', [AdminReviewController::class, 'index'])
+            ->middleware('can:providers.view')
+            ->name('providers.reviews.index');
+
+        // Disputes — a distinct sensitive workflow, gated by its own
+        // permissions (customer_support/operations_manager), not reused
+        // from another domain.
+        Route::middleware('can:disputes.view')->group(function (): void {
+            Route::get('/disputes', [AdminDisputeController::class, 'index'])->name('disputes.index');
+            Route::get('/disputes/{dispute}', [AdminDisputeController::class, 'show'])->name('disputes.show');
+        });
+        Route::post('/disputes/{dispute}/status', [AdminDisputeController::class, 'advance'])
+            ->middleware('can:disputes.manage')
+            ->name('disputes.status');
     });
 });

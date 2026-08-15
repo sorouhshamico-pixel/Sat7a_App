@@ -68,6 +68,8 @@ class RolePermissionSeeder extends Seeder
                 $p::OrdersView->value,
                 $p::OrdersViewAll->value,
                 $p::UsersView->value,
+                $p::DisputesView->value,
+                $p::DisputesManage->value,
             ],
             RoleName::FinanceOfficer->value => [
                 $p::PaymentsView->value,
@@ -97,6 +99,8 @@ class RolePermissionSeeder extends Seeder
                 $p::DriversSuspend->value,
                 $p::FleetSuspend->value,
                 $p::PricingView->value,
+                $p::DisputesView->value,
+                $p::DisputesManage->value,
             ],
             RoleName::Admin->value => array_map(
                 fn (PermissionName $permission) => $permission->value,

@@ -9,6 +9,7 @@ use App\Domain\Ledger\Models\LedgerEntry;
 use App\Domain\Ledger\Models\ProviderBankAccount;
 use App\Domain\Ledger\Models\SettlementBatch;
 use App\Domain\Providers\Enums\ProviderStatus;
+use App\Domain\Reviews\Models\Review;
 use App\Models\User;
 use App\Support\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -23,7 +24,7 @@ use Illuminate\Support\Carbon;
  * @property ProviderStatus $status
  * @property Carbon|null $approved_at
  */
-#[Fillable(['business_name', 'commercial_registration_number', 'tax_number', 'contact_phone', 'contact_email', 'status', 'rejection_reason', 'suspension_reason', 'approved_at', 'approved_by'])]
+#[Fillable(['business_name', 'commercial_registration_number', 'tax_number', 'contact_phone', 'contact_email', 'status', 'rejection_reason', 'suspension_reason', 'approved_at', 'approved_by', 'rating'])]
 class Provider extends Model
 {
     use HasUlid;
@@ -101,5 +102,13 @@ class Provider extends Model
     public function settlementBatches(): HasMany
     {
         return $this->hasMany(SettlementBatch::class);
+    }
+
+    /**
+     * @return HasMany<Review, $this>
+     */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
     }
 }

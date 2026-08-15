@@ -54,4 +54,12 @@ enum ErrorCode: string
     case SettlementInvalidTransition = 'SETTLEMENT_INVALID_TRANSITION';
     case BankAccountNotVerified = 'BANK_ACCOUNT_NOT_VERIFIED';
     case BankAccountNotFound = 'BANK_ACCOUNT_NOT_FOUND';
+
+    case OrderNotReviewable = 'ORDER_NOT_REVIEWABLE';
+    case ReviewAlreadyExists = 'REVIEW_ALREADY_EXISTS';
+
+    case OrderNotDisputable = 'ORDER_NOT_DISPUTABLE';
+    case DisputeAlreadyOpen = 'DISPUTE_ALREADY_OPEN';
+    case DisputeInvalidTransition = 'DISPUTE_INVALID_TRANSITION';
+    case DisputeResolutionNotesRequired = 'DISPUTE_RESOLUTION_NOTES_REQUIRED';
 }

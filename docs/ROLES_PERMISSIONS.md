@@ -75,6 +75,8 @@ settlements.view           settlements.approve       settlements.view_bank_detai
 
 documents.view              documents.view_sensitive documents.verify
 
+disputes.view                disputes.manage
+
 pricing.view                 pricing.update
 
 users.view                    users.suspend
@@ -173,6 +175,20 @@ permissions; `admin`/`super_admin` inherit it automatically via their "all permi
 Provider-facing bank-account endpoints (`/api/v1/providers/me/bank-account`) are ownership-scoped
 like every other `/me` endpoint, and the owning provider always sees their own unmasked IBAN
 regardless of this permission.
+
+## Reviews & Disputes (implemented, Phase 15)
+
+Reviews mint no new permission: `GET /api/v1/providers/me/reviews` is ownership-scoped like every
+other `/me` endpoint, and `GET /api/v1/admin/providers/{provider}/reviews` reuses `providers.view`
+— read-only information about a provider, not a distinct workflow.
+
+Disputes get two new permissions — `disputes.view` (list/view any dispute) and `disputes.manage`
+(advance a dispute through its whole `open`→`under_review`→`resolved`/`rejected` lifecycle, one
+permission for the whole workflow, the same choice already made for `orders.assign` in Phase 9
+and `settlements.approve` in Phase 14) — both seeded to `customer_support` and
+`operations_manager` per `docs/PRODUCT_REQUIREMENTS.md` ("Customer Support — handles tickets and
+disputes"). Unlike reviews, this is a genuinely new sensitive workflow rather than read access to
+an existing resource, which is why it got its own permissions instead of reusing one.
 
 ## Audit logging (implemented)
 

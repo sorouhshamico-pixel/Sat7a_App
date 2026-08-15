@@ -50,6 +50,14 @@ enum PermissionName: string
     case DocumentsViewSensitive = 'documents.view_sensitive';
     case DocumentsVerify = 'documents.verify';
 
+    // Disputes are a distinct sensitive workflow — customer_support and
+    // operations_manager only (see docs/REVIEWS_DISPUTES.md). Reviews have
+    // no dedicated permission of their own: admin/compliance visibility
+    // into a provider's reviews reuses `providers.view`, since it's
+    // read-only information *about* a provider, not a separate workflow.
+    case DisputesView = 'disputes.view';
+    case DisputesManage = 'disputes.manage';
+
     case PricingView = 'pricing.view';
     case PricingUpdate = 'pricing.update';
 

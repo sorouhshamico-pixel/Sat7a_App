@@ -2,7 +2,9 @@
 
 namespace App\Domain\Customers\Models;
 
+use App\Domain\Disputes\Models\Dispute;
 use App\Domain\Orders\Models\Order;
+use App\Domain\Reviews\Models\Review;
 use App\Models\User;
 use App\Support\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -75,5 +77,21 @@ class Customer extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /**
+     * @return HasMany<Review, $this>
+     */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    /**
+     * @return HasMany<Dispute, $this>
+     */
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(Dispute::class);
     }
 }

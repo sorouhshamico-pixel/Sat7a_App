@@ -5,6 +5,7 @@ namespace App\Domain\Orders\Models;
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Customers\Models\Vehicle;
 use App\Domain\Dispatch\Models\DispatchOffer;
+use App\Domain\Disputes\Models\Dispute;
 use App\Domain\Drivers\Models\Driver;
 use App\Domain\Fleet\Models\TowTruck;
 use App\Domain\Orders\Enums\OrderCancelledBy;
@@ -12,11 +13,13 @@ use App\Domain\Orders\Enums\OrderPaymentMethod;
 use App\Domain\Orders\Enums\OrderStatus;
 use App\Domain\Payments\Models\Payment;
 use App\Domain\Providers\Models\Provider;
+use App\Domain\Reviews\Models\Review;
 use App\Support\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property OrderStatus $status
@@ -113,5 +116,21 @@ class Order extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * @return HasOne<Review, $this>
+     */
+    public function review(): HasOne
+    {
+        return $this->hasOne(Review::class);
+    }
+
+    /**
+     * @return HasMany<Dispute, $this>
+     */
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(Dispute::class);
     }
 }

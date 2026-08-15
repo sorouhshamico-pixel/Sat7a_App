@@ -8,6 +8,7 @@ use App\Domain\Drivers\Enums\DriverStatus;
 use App\Domain\Fleet\Models\TowTruck;
 use App\Domain\Orders\Models\Order;
 use App\Domain\Providers\Models\Provider;
+use App\Domain\Reviews\Models\Review;
 use App\Models\User;
 use App\Support\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -85,5 +86,13 @@ class Driver extends Model
     public function assignedOrders(): HasMany
     {
         return $this->hasMany(Order::class, 'assigned_driver_id');
+    }
+
+    /**
+     * @return HasMany<Review, $this>
+     */
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(Review::class);
     }
 }

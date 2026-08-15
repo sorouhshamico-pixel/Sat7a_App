@@ -23,8 +23,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 11 | Live Location Tracking | Done |
 | 12 | Payments | Done |
 | 13 | Financial Ledger & Commission | Done |
-| 14 | Settlements | **Done** |
-| 15 | Reviews & Disputes | Not started |
+| 14 | Settlements | Done |
+| 15 | Reviews & Disputes | **Done** |
 | 16 | Notifications | Not started |
 | 17 | Operations Command Center | Not started |
 | 18 | Finance & Compliance Admin | Not started |
@@ -470,6 +470,37 @@ Not yet in this phase: an automated settlement-generation schedule (batches are 
 on-demand by finance staff, not on a cron); an actual bank-transfer/payout gateway integration
 (marking `paid` records the ledger entry and a free-text `reference`, but nothing calls out to a
 real payment rail).
+
+## Phase 15 — Reviews & Disputes (this phase)
+
+Implemented: `App\Domain\Reviews` and `App\Domain\Disputes`, filling in the two domain folders
+`docs/ARCHITECTURE.md` reserved for them since Phase 0.
+
+Reviews (`reviews` table, one per order): a customer rates their own order once it reaches
+`completed` (`App\Domain\Reviews\Actions\CreateReviewAction`,
+`POST /api/v1/customers/me/orders/{orderPublicId}/review`). Every new review recalculates the
+provider's and driver's cached `rating` — a simple average, the same stored-aggregate shape
+`drivers.rating` already had from Phase 4 (`providers.rating` is new this phase). Admin visibility
+into a provider's reviews reuses `providers.view` rather than a new permission, since it's
+read-only information about an existing resource.
+
+Disputes (`disputes` table): a customer disputes their own order once it reaches a terminal state
+(`completed` or any `cancelled_*`) via `App\Domain\Disputes\Actions\RaiseDisputeAction`. States —
+`open` → `under_review` → `resolved`/`rejected` — deliberately allow no shortcut past
+`under_review`, so a staff member always "picks up" a dispute (recording `assigned_to`) before
+closing it, and closing one requires non-empty resolution notes. The single choke point for every
+transition is `App\Domain\Disputes\Actions\AdvanceDisputeStatusAction`, audit-logged like every
+other sensitive staff decision in this project. Unlike reviews, disputes got two brand-new
+permissions — `disputes.view`/`disputes.manage` — seeded to `customer_support` and
+`operations_manager`, since this is a genuinely new sensitive workflow rather than read access to
+an existing one; the whole lifecycle reuses `disputes.manage` end to end, the same "one
+permission per admin workflow" choice made for settlements in Phase 14 and dispatch overrides in
+Phase 9.
+
+Not yet in this phase: editing/deleting a review; a provider-side response to a review or
+dispute; any automatic action tied to a dispute's resolution (a refund, if warranted, is still a
+separate manual step via the existing payments-refund endpoint); public-facing provider ratings
+(there is no public "browse providers" endpoint — dispatch is automatic).
 
 ## Definition of Done for every phase
 

@@ -13,7 +13,8 @@ stay in sync with `apps/backend/database/migrations/`.
 - `roles`, `permissions`, `permission_role`, `role_user` — see `docs/ROLES_PERMISSIONS.md`
   (Phase 2).
 - `audit_logs` — immutable, append-only (Phase 2).
-- `providers` — see `docs/COMPLIANCE.md` §Provider compliance lifecycle (Phase 3).
+- `providers` — see `docs/COMPLIANCE.md` §Provider compliance lifecycle (Phase 3); `rating`
+  (nullable decimal, cached average across `reviews`) added in Phase 15.
 - `documents` — polymorphic (`documentable_type`/`documentable_id`); Provider documents today,
   Driver documents from Phase 4 reuse this same table (Phase 3/4).
 - `users.provider_id` — added in Phase 4; single source of truth for which provider a
@@ -111,6 +112,13 @@ Haversine query against `tow_trucks.current_latitude`/`current_longitude` instea
   `iban` (encrypted at rest via Laravel's `encrypted` cast), `bank_name`, `verified`,
   `verified_by` (nullable FK user), `verified_at`. See `docs/SETTLEMENT_ARCHITECTURE.md` §Bank
   account security (Phase 14).
+- `reviews` — one per order (`order_id` unique): `customer_id`/`provider_id`/`driver_id`
+  (`driver_id` nullable), `rating` (1-5, checked), `comment`. See `docs/REVIEWS_DISPUTES.md`
+  (Phase 15).
+- `disputes` — `order_id` (not unique — see `docs/REVIEWS_DISPUTES.md`), `customer_id`, `reason`,
+  `description`, `status` (state machine, see `App\Domain\Disputes\Enums\DisputeStatus`),
+  `assigned_to`/`resolution_notes`/`resolved_by`/`resolved_at` (all nullable, populated only once
+  staff act on it). See `docs/REVIEWS_DISPUTES.md` (Phase 15).
 
 ## Engine
 

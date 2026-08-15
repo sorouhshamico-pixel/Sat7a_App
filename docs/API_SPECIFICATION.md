@@ -112,6 +112,16 @@ exist yet.
 | GET | `/api/v1/admin/settlements/{settlement}` | token ability `*` + permission `settlements.view` | Settlement batch detail |
 | POST | `/api/v1/admin/providers/{provider}/settlements` | token ability `*` + permission `settlements.approve` | Generates a new `draft` batch from the provider's eligible, unclaimed earnings (audited) |
 | POST | `/api/v1/admin/settlements/{settlement}/status` | token ability `*` + permission `settlements.approve` | Advances a batch's status (`pending_approval`/`approved`/`processing`/`paid`/`failed`/`cancelled`); creates the payout ledger entry on `paid`, releases claimed entries on `failed`/`cancelled` |
+| POST | `/api/v1/customers/me/orders/{orderPublicId}/review` | customer token | Rates the caller's own `completed` order (1-5, optional comment); recalculates provider/driver `rating` |
+| GET | `/api/v1/customers/me/orders/{orderPublicId}/review` | customer token | Views the caller's own review for an order |
+| GET | `/api/v1/providers/me/reviews` | token ability `*` | Own provider's reviews, paginated |
+| GET | `/api/v1/admin/providers/{provider}/reviews` | token ability `*` + permission `providers.view` | Any provider's reviews, paginated |
+| POST | `/api/v1/customers/me/orders/{orderPublicId}/dispute` | customer token | Raises a dispute on the caller's own terminal-state order |
+| GET | `/api/v1/customers/me/disputes` | customer token | Lists the caller's own disputes, paginated |
+| GET | `/api/v1/customers/me/disputes/{disputePublicId}` | customer token | Own dispute detail |
+| GET | `/api/v1/admin/disputes` | token ability `*` + permission `disputes.view` | Lists/filters all disputes by `status` |
+| GET | `/api/v1/admin/disputes/{dispute}` | token ability `*` + permission `disputes.view` | Dispute detail |
+| POST | `/api/v1/admin/disputes/{dispute}/status` | token ability `*` + permission `disputes.manage` | Advances a dispute's status (`under_review`/`resolved`/`rejected`); resolving/rejecting requires `resolution_notes` |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning
