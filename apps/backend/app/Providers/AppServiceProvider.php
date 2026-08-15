@@ -3,9 +3,12 @@
 namespace App\Providers;
 
 use App\Domain\Dispatch\Listeners\StartDispatchListener;
+use App\Domain\Ledger\Listeners\RecordCommissionListener;
 use App\Domain\Orders\Events\OrderCancelled;
 use App\Domain\Orders\Events\OrderCreated;
 use App\Domain\Orders\Listeners\LogOrderLifecycleListener;
+use App\Domain\Payments\Events\PaymentCaptured;
+use App\Domain\Payments\Events\RefundProcessed;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -99,5 +102,8 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(OrderCreated::class, [LogOrderLifecycleListener::class, 'handleCreated']);
         Event::listen(OrderCancelled::class, [LogOrderLifecycleListener::class, 'handleCancelled']);
         Event::listen(OrderCreated::class, StartDispatchListener::class);
+
+        Event::listen(PaymentCaptured::class, [RecordCommissionListener::class, 'handlePaymentCaptured']);
+        Event::listen(RefundProcessed::class, [RecordCommissionListener::class, 'handleRefundProcessed']);
     }
 }

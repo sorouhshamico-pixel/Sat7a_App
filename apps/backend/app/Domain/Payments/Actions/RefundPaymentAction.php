@@ -6,6 +6,7 @@ use App\Domain\Audit\Services\AuditLogger;
 use App\Domain\Payments\Contracts\PaymentGateway;
 use App\Domain\Payments\Enums\PaymentStatus;
 use App\Domain\Payments\Enums\RefundStatus;
+use App\Domain\Payments\Events\RefundProcessed;
 use App\Domain\Payments\Exceptions\PaymentException;
 use App\Domain\Payments\Models\Payment;
 use App\Domain\Payments\Models\Refund;
@@ -75,6 +76,10 @@ class RefundPaymentAction
                 newValues: ['amount' => $amountMinorUnits, 'status' => $result->status->value],
                 reason: $reason,
             );
+
+            if ($result->status === RefundStatus::Succeeded) {
+                RefundProcessed::dispatch($refund);
+            }
 
             return $refund;
         });

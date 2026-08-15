@@ -144,6 +144,17 @@ customer orders — a driver reaches only their own offers via
 `App\Http\Controllers\Concerns\ResolvesDriver`, not a permission check, since there is no
 platform-wide "view any driver's offers" business need today.
 
+## Payments & ledger (implemented, Phase 12/13)
+
+`payments.view`/`payments.refund` (Phase 12) and `settlements.view` (Phase 13) — all seeded back
+in Phase 2, granted to `finance_officer` — now gate `/api/v1/admin/payments/...` and
+`/api/v1/admin/providers/{provider}/balance`/`.../ledger` respectively. No new permissions were
+needed for either phase; `settlements.view` was seeded ahead of its own implementation, matching
+the same "seed the full catalog early, enforce it as each phase lands" approach `orders.assign`
+followed in Phase 9. Provider-facing ledger/balance endpoints
+(`/api/v1/providers/me/balance`/`.../ledger`) are ownership-scoped like every other `/me`
+endpoint — no permission gate, since a provider only ever sees their own.
+
 ## Audit logging (implemented)
 
 `App\Domain\Audit\Services\AuditLogger` writes an immutable `audit_logs` row

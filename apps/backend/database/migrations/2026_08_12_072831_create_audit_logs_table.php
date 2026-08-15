@@ -24,7 +24,11 @@ return new class extends Migration
             $table->string('user_agent')->nullable();
             // Immutable, append-only log (see docs/SECURITY.md §Audit) — no
             // updated_at, entries are never modified after creation.
-            $table->timestamp('created_at')->useCurrent();
+            // Timezone-aware (not plain `timestamp`) so `useCurrent()`'s
+            // DB-side `CURRENT_TIMESTAMP` is stored/read correctly
+            // regardless of the Postgres session's timezone setting — see
+            // docs/DATABASE_SCHEMA.md §Time.
+            $table->timestampTz('created_at')->useCurrent();
 
             $table->index(['entity_type', 'entity_id']);
             $table->index('actor_id');

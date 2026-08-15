@@ -95,6 +95,11 @@ Haversine query against `tow_trucks.current_latitude`/`current_longitude` instea
   `event_id` (unique together), `event_type`, `payload` (JSON, redacted of sensitive values
   before storage), `processed_at`. Written only by
   `App\Domain\Payments\Actions\ProcessPaymentWebhookAction` (Phase 12).
+- `ledger_entries` — append-only financial ledger: `order_id`/`payment_id`/`provider_id`
+  (nullable), `type` (`customer_payment`/`platform_commission`/`gateway_fee`/`provider_payable`/
+  `refund`/`adjustment`/`settlement`), `direction` (`credit`/`debit`), `amount`, `currency`,
+  `description`. A provider's balance is derived by summing these, never stored as a running
+  total. See `docs/SETTLEMENT_ARCHITECTURE.md` (Phase 13).
 
 ## Engine
 
@@ -111,8 +116,18 @@ PostgreSQL + PostGIS. No other database engine is used for the system of record.
 - **Money**: integer minor units (halalas) — `SAR 185.50` is stored as `18550`. Never `float` or
   `double` for anything money-related. A `currency` column (ISO 4217 code, default `SAR`)
   accompanies every money column set so multi-currency isn't a rewrite later.
-- **Time**: `timestamptz` columns stored in UTC. Display conversion to `Asia/Riyadh` happens at
-  the presentation layer, never by shifting stored values.
+- **Time**: `timestamptz` columns stored in UTC — use Laravel's `timestampTz()`, never the
+  timezone-naive `timestamp()`, for **any** column populated via a DB-side default
+  (`->useCurrent()`). A `timestamp()` (no tz) column stores `CURRENT_TIMESTAMP` as naive
+  wall-clock text in whatever timezone the Postgres *session* happens to be configured for —
+  this local dev server's session timezone is `Asia/Riyadh` (`+03`), so every affected column
+  was silently reading back 3 hours ahead of true UTC (found and fixed in Phase 13, see
+  `docs/SETTLEMENT_ARCHITECTURE.md` §A real bug found and fixed while building this, after it
+  broke a pending-vs-available balance cutoff comparison). This risk doesn't apply to a column
+  Eloquent populates from PHP (standard `$timestamps`, or an explicitly-assigned Carbon value) —
+  only to `useCurrent()`/raw-SQL-default columns, since PHP-computed values are already correct
+  UTC strings regardless of the DB session's timezone. Display conversion to `Asia/Riyadh`
+  happens at the presentation layer, never by shifting stored values.
 - **Geography**: PostGIS `geography(Point, 4326)` for point locations (pickup, dropoff, live
   driver position, provider base), with a GiST spatial index. Radius/nearby queries use PostGIS
   functions (`ST_DWithin`, `ST_Distance`) — never manual Haversine math in PHP.

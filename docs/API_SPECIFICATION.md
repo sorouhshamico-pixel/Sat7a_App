@@ -2,10 +2,10 @@
 
 ## Status
 
-Phase 12: authentication, admin role-management, provider onboarding/compliance, fleet/driver
+Phase 13: authentication, admin role-management, provider onboarding/compliance, fleet/driver
 management, customer profile/vehicle/saved-location, maps/cities, pricing, order, dispatch,
-realtime-auth, live-location/trip-status, and payment endpoints exist (listed below). The actual
-OpenAPI 3.x document will live at
+realtime-auth, live-location/trip-status, payment, and ledger/balance endpoints exist (listed
+below). The actual OpenAPI 3.x document will live at
 `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
 stabilizes further; for now this file is the source of truth and must stay in sync with the real
 routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
@@ -98,6 +98,10 @@ exist yet.
 | GET | `/api/v1/admin/payments` | token ability `*` + permission `payments.view` | Lists/filters all payments by status |
 | GET | `/api/v1/admin/payments/{payment}` | token ability `*` + permission `payments.view` | Payment detail + refund history |
 | POST | `/api/v1/admin/payments/{payment}/refund` | token ability `*` + permission `payments.refund` | Full or partial refund (audited) |
+| GET | `/api/v1/providers/me/balance` | token ability `*` | Own provider's pending/available/settled balance |
+| GET | `/api/v1/providers/me/ledger` | token ability `*` | Own provider's ledger entries, paginated |
+| GET | `/api/v1/admin/providers/{provider}/balance` | token ability `*` + permission `settlements.view` | Any provider's balance |
+| GET | `/api/v1/admin/providers/{provider}/ledger` | token ability `*` + permission `settlements.view` | Any provider's ledger entries, paginated |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

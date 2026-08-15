@@ -29,7 +29,8 @@ return new class extends Migration
             // connection.
             $table->timestamp('recorded_at');
 
-            $table->timestamp('created_at')->useCurrent();
+            // Timezone-aware — see docs/DATABASE_SCHEMA.md §Time.
+            $table->timestampTz('created_at')->useCurrent();
 
             $table->index(['order_id', 'recorded_at']);
         });

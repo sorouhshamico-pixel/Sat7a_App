@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('role_user', function (Blueprint $table) {
             $table->foreignId('role_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->timestamp('assigned_at')->useCurrent();
+            // Timezone-aware — see docs/DATABASE_SCHEMA.md §Time.
+            $table->timestampTz('assigned_at')->useCurrent();
             $table->foreignId('assigned_by')->nullable()->constrained('users')->nullOnDelete();
             $table->primary(['role_id', 'user_id']);
         });

@@ -5,6 +5,7 @@ namespace App\Domain\Providers\Models;
 use App\Domain\Compliance\Models\Document;
 use App\Domain\Drivers\Models\Driver;
 use App\Domain\Fleet\Models\TowTruck;
+use App\Domain\Ledger\Models\LedgerEntry;
 use App\Domain\Providers\Enums\ProviderStatus;
 use App\Models\User;
 use App\Support\Concerns\HasUlid;
@@ -73,5 +74,13 @@ class Provider extends Model
     public function towTrucks(): HasMany
     {
         return $this->hasMany(TowTruck::class);
+    }
+
+    /**
+     * @return HasMany<LedgerEntry, $this>
+     */
+    public function ledgerEntries(): HasMany
+    {
+        return $this->hasMany(LedgerEntry::class);
     }
 }

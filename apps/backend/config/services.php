@@ -50,6 +50,11 @@ return [
         'public_key' => env('PAYMENT_GATEWAY_PUBLIC_KEY'),
         'secret_key' => env('PAYMENT_GATEWAY_SECRET_KEY'),
         'webhook_secret' => env('PAYMENT_GATEWAY_WEBHOOK_SECRET'),
+        // No real gateway is configured, so there's no real processing
+        // cost to model — 0 until a real gateway's actual fee schedule
+        // is known (see docs/SETTLEMENT_ARCHITECTURE.md and
+        // App\Domain\Ledger\Actions\RecordPaymentLedgerEntriesAction).
+        'gateway_fee_percentage' => (float) env('PAYMENT_GATEWAY_FEE_PERCENTAGE', 0),
         'fake' => [
             // A real gateway secret is never set for a driver nobody has
             // credentials for — this fallback lets the fake adapter's

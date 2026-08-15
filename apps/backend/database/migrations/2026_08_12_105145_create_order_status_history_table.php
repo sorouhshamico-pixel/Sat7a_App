@@ -18,7 +18,8 @@ return new class extends Migration
             $table->foreignId('changed_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('notes')->nullable();
 
-            $table->timestamp('created_at')->useCurrent();
+            // Timezone-aware — see docs/DATABASE_SCHEMA.md §Time.
+            $table->timestampTz('created_at')->useCurrent();
 
             $table->index(['order_id', 'created_at']);
         });

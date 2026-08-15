@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\Admin\DispatchController as AdminDispatchController;
 use App\Http\Controllers\Api\V1\Admin\DocumentVerificationController;
 use App\Http\Controllers\Api\V1\Admin\DriverController as AdminDriverController;
+use App\Http\Controllers\Api\V1\Admin\LedgerController as AdminLedgerController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Api\V1\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\V1\Admin\PricingController as AdminPricingController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\Api\V1\Maps\MapsController;
 use App\Http\Controllers\Api\V1\Orders\OrderController;
 use App\Http\Controllers\Api\V1\Orders\PaymentController;
 use App\Http\Controllers\Api\V1\Pricing\QuoteController;
+use App\Http\Controllers\Api\V1\Providers\LedgerController;
 use App\Http\Controllers\Api\V1\Providers\ProviderController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDocumentController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDriverController;
@@ -121,6 +123,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 Route::patch('/me/fleet/{towTruckPublicId}/status', [ProviderFleetController::class, 'updateStatus'])
                     ->name('me.fleet.status');
             });
+
+            // Ledger & balance — see docs/SETTLEMENT_ARCHITECTURE.md. No
+            // extra permission gate: this is always the caller's own
+            // provider, resolved via ResolvesProvider, same as the rest
+            // of this group.
+            Route::get('/me/balance', [LedgerController::class, 'balance'])->name('me.balance');
+            Route::get('/me/ledger', [LedgerController::class, 'index'])->name('me.ledger.index');
         });
     });
 
@@ -287,5 +296,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::post('/payments/{payment}/refund', [AdminPaymentController::class, 'refund'])
             ->middleware('can:payments.refund')
             ->name('payments.refund');
+
+        Route::middleware('can:settlements.view')->group(function (): void {
+            Route::get('/providers/{provider}/balance', [AdminLedgerController::class, 'balance'])->name('providers.balance');
+            Route::get('/providers/{provider}/ledger', [AdminLedgerController::class, 'index'])->name('providers.ledger');
+        });
     });
 });

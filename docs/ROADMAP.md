@@ -21,8 +21,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 9 | Dispatch & Matching | Done |
 | 10 | Realtime | Done |
 | 11 | Live Location Tracking | Done |
-| 12 | Payments | **Done** |
-| 13 | Financial Ledger & Commission | Not started |
+| 12 | Payments | Done |
+| 13 | Financial Ledger & Commission | **Done** |
 | 14 | Settlements | Not started |
 | 15 | Reviews & Disputes | Not started |
 | 16 | Notifications | Not started |
@@ -375,11 +375,48 @@ gateway interface; it was dropped once the phase actually landed, since nothing 
 needs a hold-then-capture-later flow — the same kind of refinement Phase 8 made when it dropped
 the speculative `draft`/`quote_ready` order states.
 
-Not yet in this phase: a real gateway adapter (no credentials exist); financial ledger/commission/
-settlements (Phase 13/14) — a captured payment generates no ledger entries or payout calculation
-yet; automatic refund-on-cancellation (no cancellation-fee policy has ever been defined, so a
-human decides for now); a reconciliation job polling stuck-`pending` payments (the
-`getPaymentStatus()` interface method exists but nothing calls it on a schedule).
+Not yet in this phase: a real gateway adapter (no credentials exist); commission/ledger
+recording (landed in Phase 13, immediately after this one); settlement payouts (Phase 14 — a
+provider's balance is trackable from Phase 13 on, but nothing pays it out yet); automatic
+refund-on-cancellation (no cancellation-fee policy has ever been defined, so a human decides for
+now); a reconciliation job polling stuck-`pending` payments (the `getPaymentStatus()` interface
+method exists but nothing calls it on a schedule).
+
+## Phase 13 — Financial Ledger & Commission (this phase)
+
+Implemented: `App\Domain\Ledger` — an append-only, immutable financial ledger
+(`ledger_entries`) that a provider's balance is *derived from*, never stored as a running total.
+`App\Domain\Ledger\Actions\RecordPaymentLedgerEntriesAction` runs on every captured payment
+(`PaymentCaptured`, Phase 12), reading the commission/tax figures straight from the order's
+already-frozen `pricing_snapshot` (Phase 7) rather than recomputing them — a later pricing
+change can never retroactively touch a historical ledger entry. Card and cash payments use
+different formulas: a card payment credits the provider `gross - commission - gateway_fee - tax`
+(the platform owes them); a cash payment — money the provider already collected in person,
+never touching the platform — debits them `commission + tax` (they owe the platform), correctly
+modeling that Phase 12 folded cash through the same payment/ledger system as card. Refunds
+reverse the original entry's balance impact proportionally, which handles partial refunds and
+the cash-debit case correctly with no special-casing.
+
+`App\Domain\Ledger\Actions\GetProviderBalanceAction` exposes `pending_balance` (earned within a
+configurable hold window, default 24h — a fraud/dispute-protection buffer),
+`available_balance` (outside the window, not yet settled — what Phase 14 will actually pay
+out), and `settled_balance` (always `0` today, formula ready for when Phase 14 exists). A
+negative balance is valid and expected (the cash-debit case). `GET /api/v1/providers/me/balance`
+and `.../ledger` (own provider) and the admin equivalents (gated by `settlements.view`, already
+seeded to `finance_officer` in Phase 2 — no permission catalog changes needed) expose this.
+
+**A real, previously-invisible bug was found and fixed while building this**: comparing a
+DB-populated (`useCurrent()`) timestamp against a real-time cutoff exposed that the local
+Postgres server's session timezone (`Asia/Riyadh`, `+03`) had been silently corrupting every
+timezone-naive `timestamp()` column populated by a DB-side default across six tables and five
+phases (`role_user`, `audit_logs`, `order_status_history`, `order_location_pings`,
+`payment_webhook_events`, and this phase's `ledger_entries`) — each read back 3 hours ahead of
+true UTC. Fixed by switching every affected column to `timestampTz()`, a self-contained fix
+that doesn't depend on the DB server being configured correctly. See
+`docs/SETTLEMENT_ARCHITECTURE.md` and `docs/DATABASE_SCHEMA.md` §Time for the full account.
+
+Not yet in this phase: settlement batches / actual payouts (Phase 14); bank account
+storage/masking (Phase 14); anything that creates a `settlement`-type ledger entry.
 
 ## Definition of Done for every phase
 
