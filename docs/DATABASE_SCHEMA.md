@@ -119,6 +119,11 @@ Haversine query against `tow_trucks.current_latitude`/`current_longitude` instea
   `description`, `status` (state machine, see `App\Domain\Disputes\Enums\DisputeStatus`),
   `assigned_to`/`resolution_notes`/`resolved_by`/`resolved_at` (all nullable, populated only once
   staff act on it). See `docs/REVIEWS_DISPUTES.md` (Phase 15).
+- `notifications` — `user_id`, `type` (see `App\Domain\Notifications\Enums\NotificationType`),
+  `title`, `body`, `data` (JSON, nullable), `channels` (JSON — which external channels were
+  actually attempted for this event), `read_at` (nullable). The in-app inbox record for every
+  notification, always created regardless of channel preferences. See `docs/NOTIFICATIONS.md`
+  (Phase 16).
 
 ## Engine
 

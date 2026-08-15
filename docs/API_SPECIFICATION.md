@@ -122,6 +122,8 @@ exist yet.
 | GET | `/api/v1/admin/disputes` | token ability `*` + permission `disputes.view` | Lists/filters all disputes by `status` |
 | GET | `/api/v1/admin/disputes/{dispute}` | token ability `*` + permission `disputes.view` | Dispute detail |
 | POST | `/api/v1/admin/disputes/{dispute}/status` | token ability `*` + permission `disputes.manage` | Advances a dispute's status (`under_review`/`resolved`/`rejected`); resolving/rejecting requires `resolution_notes` |
+| GET | `/api/v1/notifications/me` | token ability `*` | Caller's own notification inbox, paginated; `?unread_only=1`, `meta.unread_count` |
+| POST | `/api/v1/notifications/me/{notificationPublicId}/read` | token ability `*` | Marks one of the caller's own notifications read |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

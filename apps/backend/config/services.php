@@ -41,6 +41,25 @@ return [
         'sender_id' => env('SMS_PROVIDER_SENDER_ID'),
     ],
 
+    // No real vendor exists for any of these yet — every driver defaults
+    // to 'log' (see App\Providers\NotificationServiceProvider and
+    // docs/NOTIFICATIONS.md), same pattern as `sms` above.
+    'push' => [
+        'driver' => env('PUSH_PROVIDER_DRIVER', 'log'),
+        'api_key' => env('PUSH_PROVIDER_API_KEY'),
+    ],
+
+    'email' => [
+        'driver' => env('EMAIL_PROVIDER_DRIVER', 'log'),
+        'api_key' => env('EMAIL_PROVIDER_API_KEY'),
+        'from_address' => env('EMAIL_PROVIDER_FROM_ADDRESS'),
+    ],
+
+    'whatsapp' => [
+        'driver' => env('WHATSAPP_PROVIDER_DRIVER', 'log'),
+        'api_key' => env('WHATSAPP_PROVIDER_API_KEY'),
+    ],
+
     'google_maps' => [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],

@@ -76,11 +76,14 @@ customer is ready to actually book — there's no intermediate persisted draft s
   cancellation (`orders.cancel` permission) goes through the same state-machine matrix, which
   independently blocks cancelling an order that's already `trip_started` or later — a trip
   already underway is a dispute/refund concern, not a cancellation one.
-- Domain events (`App\Domain\Orders\Events\OrderCreated`, `OrderCancelled`) are raised by the
-  actions, never inline in a controller. `App\Domain\Orders\Listeners\LogOrderLifecycleListener`
-  does structured logging today (matching the `order.accepted` shape in `docs/MONITORING.md`) —
-  it stands in for real customer/provider notifications until the Notifications domain lands in
-  Phase 16.
+- Domain events (`App\Domain\Orders\Events\OrderCreated`, `OrderCancelled`, `OrderStatusChanged`)
+  are raised by the actions, never inline in a controller.
+  `App\Domain\Orders\Listeners\LogOrderLifecycleListener` does structured logging (matching the
+  `order.accepted` shape in `docs/MONITORING.md`), and since Phase 16,
+  `App\Domain\Notifications\Listeners\SendOrderNotificationListener` sends the customer (and, on
+  cancellation, the assigned driver) a real notification — see `docs/NOTIFICATIONS.md`. `OrderCancelled`
+  implements `ShouldDispatchAfterCommit` since Phase 16, needed once a listener with real side
+  effects was attached to it (it's dispatched from inside `CancelOrderAction`'s own transaction).
 - A guest can build a quote (Phase 6/7) but an order only becomes real after authentication —
   `POST /api/v1/customers/me/orders` requires a fully-privileged customer token; there is no
   unauthenticated order creation (see `docs/PRODUCT_REQUIREMENTS.md`).

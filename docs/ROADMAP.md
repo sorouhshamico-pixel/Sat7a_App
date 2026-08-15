@@ -24,8 +24,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 12 | Payments | Done |
 | 13 | Financial Ledger & Commission | Done |
 | 14 | Settlements | Done |
-| 15 | Reviews & Disputes | **Done** |
-| 16 | Notifications | Not started |
+| 15 | Reviews & Disputes | Done |
+| 16 | Notifications | **Done** |
 | 17 | Operations Command Center | Not started |
 | 18 | Finance & Compliance Admin | Not started |
 | 19 | Customer Web App Polish | Not started |
@@ -501,6 +501,43 @@ Not yet in this phase: editing/deleting a review; a provider-side response to a 
 dispute; any automatic action tied to a dispute's resolution (a refund, if warranted, is still a
 separate manual step via the existing payments-refund endpoint); public-facing provider ratings
 (there is no public "browse providers" endpoint — dispatch is automatic).
+
+## Phase 16 — Notifications (this phase)
+
+Implemented: `App\Domain\Notifications`, filling in the domain folder reserved since Phase 0 and
+closing the two explicitly-deferred gaps left by earlier phases — order lifecycle notifications
+(`docs/ORDER_LIFECYCLE.md`) and document expiry alerts (`docs/COMPLIANCE.md` §Expiry).
+
+`App\Domain\Notifications\Actions\SendNotificationAction` is the single entry point: it always
+persists an in-app inbox record (`notifications` table), then best-effort fans out to whichever
+external channels (`sms`/`push`/`email`/`whatsapp`) the recipient has enabled per
+`customers.notification_preferences` (Phase 5) — a recipient with no customer profile (a provider
+owner, driver, or staff member) gets the same defaults, since preferences are customer-only for
+now. External delivery is fire-and-forget: a failed channel is logged, never allowed to block the
+in-app record or the business action that triggered it. Every channel follows the same
+interface-not-vendor-SDK pattern Phase 1 already established for SMS/OTP — `SmsProvider` (reused),
+plus new `PushProvider`/`EmailProvider`/`WhatsappProvider` contracts, all defaulting to a `Log*`
+adapter since no real vendor has credentials for any of them yet.
+
+Wired into two event sources: `App\Domain\Notifications\Listeners\SendOrderNotificationListener`
+(order created, cancelled, and milestone status changes — assigned/en-route/arrived/completed,
+not every granular trip state) and `App\Domain\Compliance` document expiry scan (now notifies the
+document's owner, not just a structured log line). A single shared inbox API
+(`GET /api/v1/notifications/me`, `POST /api/v1/notifications/me/{id}/read`) serves every
+authenticated user type identically, ownership-scoped to the caller.
+
+**A pre-existing gap surfaced and fixed while wiring this up**: `App\Domain\Orders\Events\
+OrderCancelled` didn't implement `ShouldDispatchAfterCommit`, even though it's dispatched from
+inside `CancelOrderAction`'s own DB transaction — harmless while its only listener was a
+side-effect-free log line, but a real bug waiting to happen once a listener with actual side
+effects (this phase's notification send) was attached. Fixed by adding the interface, matching
+every other transactionally-dispatched event in the Payments/Ledger domains.
+
+Not yet in this phase: real vendor credentials for any channel; per-provider/per-driver
+notification preferences (customer-only, as before); a "mark all read" endpoint; notifications for
+reviews, disputes, settlements, or payments (bounded to the two explicitly-deferred integration
+points from earlier phases — wiring up more event sources going forward is a small, mechanical
+addition, not a redesign).
 
 ## Definition of Done for every phase
 

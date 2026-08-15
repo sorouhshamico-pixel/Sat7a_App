@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Domain\Authorization\Concerns\HasRoles;
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Drivers\Models\Driver;
+use App\Domain\Notifications\Models\Notification;
 use App\Domain\Providers\Models\Provider;
 use App\Domain\Users\Enums\UserStatus;
 use App\Domain\Users\Enums\UserType;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -64,6 +66,20 @@ class User extends Authenticatable
     public function driver(): HasOne
     {
         return $this->hasOne(Driver::class);
+    }
+
+    /**
+     * Overrides Illuminate\Notifications\Notifiable's own `notifications()`
+     * (a morphMany against Laravel's native `notifiable_type`/
+     * `notifiable_id` shape, which this project doesn't use) — every
+     * notification here is App\Domain\Notifications\Models\Notification,
+     * see docs/NOTIFICATIONS.md.
+     *
+     * @return HasMany<Notification, $this>
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class);
     }
 
     /**

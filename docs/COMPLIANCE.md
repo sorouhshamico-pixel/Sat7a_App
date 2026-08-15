@@ -48,11 +48,12 @@ requires `documents.verify` and is audited.
 
 `php artisan compliance:check-document-expiry`, scheduled daily at 02:00
 (`routes/console.php`), scans for documents expiring in 30/15/7/1 days and already-expired
-documents, logging a structured warning for each. Real notification delivery (email/SMS/in-app)
-plugs into this same command once the Notifications domain lands in Phase 16 — this is the
-foundation, not a placeholder to be rewritten. Whether an expired mandatory document suspends
-the provider or just blocks new orders is a business decision left to a human compliance
-reviewer for now, not automated.
+documents, logging a structured warning for each (ops monitoring) and, since Phase 16, also
+notifying whoever owns the document — the provider's owner, or the driver themselves for a
+driver-owned document — via `App\Domain\Notifications\Actions\SendNotificationAction` (see
+`docs/NOTIFICATIONS.md`). Whether an expired mandatory document suspends the provider or just
+blocks new orders is a business decision left to a human compliance reviewer for now, not
+automated.
 
 ## Legal content
 

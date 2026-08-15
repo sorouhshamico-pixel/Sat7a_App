@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\V1\Drivers\TripController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Maps\CityController;
 use App\Http\Controllers\Api\V1\Maps\MapsController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Orders\OrderController;
 use App\Http\Controllers\Api\V1\Orders\PaymentController;
 use App\Http\Controllers\Api\V1\Pricing\QuoteController;
@@ -228,6 +229,14 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::get('/documents/{document}/download', [DocumentController::class, 'download'])
         ->middleware(['auth:sanctum', 'abilities:*'])
         ->name('documents.download');
+
+    // Shared notification inbox — every authenticated user type reaches
+    // only their own via the authenticated user, never a route parameter
+    // (see docs/NOTIFICATIONS.md).
+    Route::prefix('notifications')->name('notifications.')->middleware(['auth:sanctum', 'abilities:*'])->group(function (): void {
+        Route::get('/me', [NotificationController::class, 'index'])->name('me.index');
+        Route::post('/me/{notificationPublicId}/read', [NotificationController::class, 'markRead'])->name('me.read');
+    });
 
     // Public (a guest builds a quote before authenticating — see
     // docs/PRODUCT_REQUIREMENTS.md), rate-limited to control third-party
