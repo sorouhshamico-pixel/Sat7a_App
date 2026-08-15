@@ -2,12 +2,11 @@
 
 ## Status
 
-Implemented, Phase 8. The state machine, transitions, domain events, and the customer-facing
-create/show/list/cancel/timeline endpoints exist as described below. Dispatch (Phase 9) will
-drive the `searching_provider` → `provider_assigned` → ... states automatically; for now those
-transitions exist in the matrix and are exercised directly in tests via
-`App\Domain\Orders\Services\OrderStateMachine`, but nothing in the product yet triggers them —
-an order created today simply sits in `pending` until Phase 9 lands.
+Implemented, Phase 8 (state machine, transitions, domain events, customer-facing endpoints).
+Every state in the diagram below is now actually reachable end-to-end: Dispatch (Phase 9) drives
+`pending` → `searching_provider` → `provider_assigned` automatically; the driver-facing trip
+endpoint (Phase 11, see `docs/LIVE_LOCATION_TRACKING.md`) drives `provider_assigned` all the way
+through `completed`.
 
 ## States
 
@@ -100,26 +99,28 @@ customer is ready to actually book — there's no intermediate persisted draft s
 | GET | `/api/v1/customers/me/orders` | customer token |
 | GET | `/api/v1/customers/me/orders/{orderPublicId}` | customer token |
 | GET | `/api/v1/customers/me/orders/{orderPublicId}/timeline` | customer token |
+| GET | `/api/v1/customers/me/orders/{orderPublicId}/location` | customer token |
 | POST | `/api/v1/customers/me/orders/{orderPublicId}/cancel` | customer token |
+| POST | `/api/v1/drivers/me/orders/{orderPublicId}/status` | driver token — see `docs/LIVE_LOCATION_TRACKING.md` |
 | GET | `/api/v1/admin/orders` | `orders.view_all` |
 | GET | `/api/v1/admin/orders/{order}` | `orders.view_all` |
+| GET | `/api/v1/admin/orders/{order}/location` | `orders.view_all` |
 | POST | `/api/v1/admin/orders/{order}/cancel` | `orders.cancel` |
 
 ## Not yet implemented
 
-- Dispatch/matching (Phase 9) — nothing currently transitions an order out of `pending`
-  automatically, and `assigned_provider_id`/`assigned_driver_id`/`assigned_tow_truck_id` columns
-  exist on `orders` but are always `null` today.
 - Payments (Phase 12) — `payment_method` is always `cash`, `final_price` is always `null`.
-- Provider-side order visibility/acceptance (depends on Phase 9).
 - Disputes/refunds workflow (Phase 15) — the `disputed`/`refund_pending`/`refunded` states exist
   in the matrix but nothing drives them yet.
+- Driver-initiated cancellation — `OrderCancelledBy::Provider` has existed as a valid enum case
+  since this phase, but no endpoint exposes it yet.
 
-## Concurrency (design — implemented alongside Phase 9)
+## Concurrency (implemented, Phase 9)
 
-Order assignment must never let two providers accept the same order. Will be implemented via DB
-transaction + row locking (and a Redis distributed lock if needed) around: acquire lock → begin
-transaction → reload order → verify it's still assignable → assign → update status → commit →
-release lock, with dedicated concurrency tests (two providers racing to accept) — see
-`docs/TESTING_STRATEGY.md` and `docs/DISPATCH_ENGINE.md`. Not a concern yet since nothing
-assigns orders to providers until Phase 9.
+Order assignment never lets two drivers accept the same order:
+`App\Domain\Dispatch\Actions\AcceptDispatchOfferAction` row-locks the order and the offer inside
+a DB transaction, re-verifies both are still in an acceptable state after the lock is acquired,
+assigns, and closes out every other pending offer for the order in the same transaction. See
+`docs/DISPATCH_ENGINE.md` §Concurrency for the full design and how it's tested (PHPUnit can't run
+true parallel requests, so the test exercises the guard logic directly: accept once, then attempt
+the same offer again).

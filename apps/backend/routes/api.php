@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\V1\Customers\SavedLocationController;
 use App\Http\Controllers\Api\V1\Customers\VehicleController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\Drivers\DispatchOfferController;
+use App\Http\Controllers\Api\V1\Drivers\LocationController;
+use App\Http\Controllers\Api\V1\Drivers\TripController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Maps\CityController;
 use App\Http\Controllers\Api\V1\Maps\MapsController;
@@ -129,6 +131,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->name('me.dispatch-offers.accept');
         Route::post('/me/dispatch-offers/{offerPublicId}/reject', [DispatchOfferController::class, 'reject'])
             ->name('me.dispatch-offers.reject');
+
+        // Live location & trip progress — see docs/LIVE_LOCATION_TRACKING.md.
+        Route::post('/me/location', [LocationController::class, 'store'])
+            ->middleware('throttle:location-ping')
+            ->name('me.location.store');
+        Route::post('/me/orders/{orderPublicId}/status', [TripController::class, 'advance'])
+            ->name('me.orders.status');
     });
 
     // Customer self-service — always scoped to the caller's own profile;
@@ -158,6 +167,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->name('me.orders.store');
         Route::get('/me/orders/{orderPublicId}', [OrderController::class, 'show'])->name('me.orders.show');
         Route::get('/me/orders/{orderPublicId}/timeline', [OrderController::class, 'timeline'])->name('me.orders.timeline');
+        Route::get('/me/orders/{orderPublicId}/location', [OrderController::class, 'location'])->name('me.orders.location');
         Route::post('/me/orders/{orderPublicId}/cancel', [OrderController::class, 'cancel'])->name('me.orders.cancel');
     });
 
@@ -239,6 +249,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
             Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
             Route::get('/orders/{order}/dispatch-offers', [AdminDispatchController::class, 'offers'])->name('orders.dispatch-offers');
+            Route::get('/orders/{order}/location', [AdminOrderController::class, 'location'])->name('orders.location');
         });
         Route::post('/orders/{order}/cancel', [AdminOrderController::class, 'cancel'])
             ->middleware('can:orders.cancel')

@@ -9,10 +9,12 @@ use App\Domain\Orders\Actions\CreateOrderAction;
 use App\Domain\Orders\Enums\OrderCancelledBy;
 use App\Domain\Orders\Exceptions\OrderException;
 use App\Domain\Pricing\Exceptions\PricingException;
+use App\Domain\Tracking\Actions\GetOrderLocationAction;
 use App\Http\Controllers\Concerns\ResolvesCustomer;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Orders\CancelOrderRequest;
 use App\Http\Requests\Api\V1\Orders\CreateOrderRequest;
+use App\Http\Resources\Api\V1\OrderLocationPingResource;
 use App\Http\Resources\Api\V1\OrderResource;
 use App\Http\Resources\Api\V1\OrderStatusHistoryResource;
 use App\Http\Responses\ApiResponse;
@@ -104,6 +106,25 @@ class OrderController extends Controller
 
         return ApiResponse::success([
             'timeline' => OrderStatusHistoryResource::collection($order->statusHistory),
+        ]);
+    }
+
+    public function location(Request $request, string $orderPublicId, GetOrderLocationAction $action): JsonResponse
+    {
+        $order = $this->resolveCustomer($request)->orders()
+            ->where('public_id', $orderPublicId)
+            ->with('assignedTowTruck')
+            ->first();
+
+        if ($order === null) {
+            return ApiResponse::error(ErrorCode::NotFound, 'Order not found.', 404);
+        }
+
+        $location = $action->handle($order, $request->integer('limit', 200));
+
+        return ApiResponse::success([
+            'current' => $location['current'],
+            'path' => OrderLocationPingResource::collection($location['path']),
         ]);
     }
 

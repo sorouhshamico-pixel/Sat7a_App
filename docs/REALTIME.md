@@ -2,10 +2,11 @@
 
 ## Status
 
-Implemented, Phase 10. Laravel Reverb (self-hosted, Pusher-protocol-compatible WebSocket
-server) broadcasts order status changes and new dispatch offers on authenticated, per-entity
+Implemented, Phase 10 (order status + dispatch offers), extended in Phase 11 (live location).
+Laravel Reverb (self-hosted, Pusher-protocol-compatible WebSocket server) broadcasts order status
+changes, new dispatch offers, and live tow-truck position updates on authenticated, per-entity
 private channels. No frontend consumes this yet — that lands with the Next.js customer/provider
-apps (Phase 19+) — this phase is the backend infrastructure only.
+apps (Phase 19+) — this is backend infrastructure only.
 
 ## What's broadcast
 
@@ -21,13 +22,19 @@ apps (Phase 19+) — this phase is the backend infrastructure only.
   what lets a driver's app show a new job without polling
   `GET /api/v1/drivers/me/dispatch-offers` (see `docs/DISPATCH_ENGINE.md`), closing the gap that
   phase explicitly left open ("a driver has to poll today").
+- **`orders.{orderPublicId}`** (private, same channel — Phase 11) —
+  `App\Domain\Tracking\Events\OrderLocationUpdated`, broadcast as `order.location_updated`.
+  Dispatched from `App\Domain\Tracking\Actions\RecordLocationPingAction` whenever a driver's
+  location ping lands while they have an order in an active trip status. See
+  `docs/LIVE_LOCATION_TRACKING.md`.
 
-Both event classes implement `Illuminate\Contracts\Events\ShouldDispatchAfterCommit` — the
-actions that dispatch them (`DispatchOrderAction`, and every caller of `OrderStateMachine::
-transition()`: `CancelOrderAction`, `AcceptDispatchOfferAction`, `ManuallyAssignOrderAction`, ...)
-routinely run inside their own DB transaction, sometimes nested. Without this, a broadcast could
-fire for a change that then rolls back. The interface defers the broadcast until the outermost
-transaction actually commits, regardless of nesting depth — no caller has to think about it.
+All three event classes implement `Illuminate\Contracts\Events\ShouldDispatchAfterCommit` — the
+actions that dispatch them (`DispatchOrderAction`, `RecordLocationPingAction`, and every caller of
+`OrderStateMachine::transition()`: `CancelOrderAction`, `AcceptDispatchOfferAction`,
+`ManuallyAssignOrderAction`, `AdvanceTripStatusAction`, ...) routinely run inside their own DB
+transaction, sometimes nested. Without this, a broadcast could fire for a change that then rolls
+back. The interface defers the broadcast until the outermost transaction actually commits,
+regardless of nesting depth — no caller has to think about it.
 
 ## Authentication & authorization (implemented)
 
@@ -68,9 +75,10 @@ dispatch offer, ...) never attempt a real network call — the null broadcaster'
 a no-op. Two different techniques are used depending on what's being tested:
 
 - **Broadcast dispatch** (`tests/Feature/Realtime/OrderBroadcastTest.php`,
-  `DispatchBroadcastTest.php`) — `Event::fake([...])` + `Event::assertDispatched(...)`, asserting
-  the right event fired with the right channel/payload. This is the standard, fast approach and
-  doesn't care which broadcaster driver is configured.
+  `DispatchBroadcastTest.php`, `LocationBroadcastTest.php`) — `Event::fake([...])` +
+  `Event::assertDispatched(...)`, asserting the right event fired with the right
+  channel/payload. This is the standard, fast approach and doesn't care which broadcaster driver
+  is configured.
 - **Channel authorization** (`ChannelAuthorizationTest.php`) — the null/log broadcasters don't
   implement real authorization logic at all (their `auth()` is a no-op that would make every
   channel look authorized), so exercising the actual callbacks in `routes/channels.php` needs
@@ -89,8 +97,5 @@ a no-op. Two different techniques are used depending on what's being tested:
   Polish, Provider Web/PWA).
 - No presence channels (e.g. "which admins are currently watching the ops dashboard") — no
   concrete need yet.
-- No live location broadcast (a tow truck's moving position) — that's Phase 11 (Live Location
-  Tracking), which will very likely reuse the same `orders.{orderPublicId}` channel for a new
-  event type once trip tracking exists.
 - Presence/typing-style channels for any future in-app chat — not part of this platform's
   current scope.

@@ -6,6 +6,7 @@ use App\Domain\Compliance\Models\Document;
 use App\Domain\Dispatch\Models\DispatchOffer;
 use App\Domain\Drivers\Enums\DriverStatus;
 use App\Domain\Fleet\Models\TowTruck;
+use App\Domain\Orders\Models\Order;
 use App\Domain\Providers\Models\Provider;
 use App\Models\User;
 use App\Support\Concerns\HasUlid;
@@ -76,5 +77,13 @@ class Driver extends Model
     public function dispatchOffers(): HasMany
     {
         return $this->hasMany(DispatchOffer::class);
+    }
+
+    /**
+     * @return HasMany<Order, $this>
+     */
+    public function assignedOrders(): HasMany
+    {
+        return $this->hasMany(Order::class, 'assigned_driver_id');
     }
 }

@@ -2,9 +2,10 @@
 
 ## Status
 
-Phase 10: authentication, admin role-management, provider onboarding/compliance, fleet/driver
-management, customer profile/vehicle/saved-location, maps/cities, pricing, order, dispatch, and
-realtime-auth endpoints exist (listed below). The actual OpenAPI 3.x document will live at
+Phase 11: authentication, admin role-management, provider onboarding/compliance, fleet/driver
+management, customer profile/vehicle/saved-location, maps/cities, pricing, order, dispatch,
+realtime-auth, and live-location/trip-status endpoints exist (listed below). The actual OpenAPI
+3.x document will live at
 `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
 stabilizes further; for now this file is the source of truth and must stay in sync with the real
 routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
@@ -87,6 +88,10 @@ exist yet.
 | POST | `/api/v1/admin/orders/{order}/dispatch/retry` | token ability `*` + permission `orders.assign` | Rescans from wave 1 for an order (e.g. after new trucks came online) |
 | POST | `/api/v1/admin/orders/{order}/dispatch/assign` | token ability `*` + permission `orders.assign` | Manually assigns a specific eligible tow truck (audited) |
 | POST | `/api/v1/broadcasting/auth` | token ability `*` | Authorizes a private WebSocket channel subscription (Reverb) — see `docs/REALTIME.md` |
+| POST | `/api/v1/drivers/me/location` | token ability `*` (rate-limited: `location-ping`) | Reports current GPS position; also breadcrumbs + broadcasts if the driver has an active trip |
+| POST | `/api/v1/drivers/me/orders/{orderPublicId}/status` | token ability `*` | Advances the driver's own order through the trip lifecycle (`provider_en_route` → `completed`) |
+| GET | `/api/v1/customers/me/orders/{orderPublicId}/location` | token ability `*` | Current position + recent path for the caller's own order |
+| GET | `/api/v1/admin/orders/{order}/location` | token ability `*` + permission `orders.view_all` | Current position + recent path, any order |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

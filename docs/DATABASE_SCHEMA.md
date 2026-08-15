@@ -72,6 +72,12 @@ Haversine query against `tow_trucks.current_latitude`/`current_longitude` instea
   `status` (state machine, see `App\Domain\Dispatch\Enums\DispatchOfferStatus`), `expires_at`,
   `responded_at`. Never mutated except `status`/`responded_at` on response — the offer history is
   the audit trail of who was asked and how they responded (Phase 9).
+- `order_location_pings` — append-only breadcrumb trail for an order's active trip window:
+  `order_id`, `latitude`/`longitude` (plain decimals — see §Geography below), `heading`/
+  `speed_kmh` (both nullable), `recorded_at` (client-supplied GPS fix time, distinct from
+  `created_at`, the server receipt time). Written only by
+  `App\Domain\Tracking\Actions\RecordLocationPingAction`. See
+  `docs/LIVE_LOCATION_TRACKING.md` (Phase 11).
 
 ## Engine
 

@@ -75,6 +75,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinutes(10, 5)->by($request->user()?->id ?: $request->ip());
         });
 
+        // A driver's app pings this frequently while on a trip — looser
+        // than the general API limit, but still bounded (see
+        // docs/LIVE_LOCATION_TRACKING.md).
+        RateLimiter::for('location-ping', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
         Event::listen(OrderCreated::class, [LogOrderLifecycleListener::class, 'handleCreated']);
         Event::listen(OrderCancelled::class, [LogOrderLifecycleListener::class, 'handleCancelled']);
         Event::listen(OrderCreated::class, StartDispatchListener::class);

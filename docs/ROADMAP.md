@@ -19,8 +19,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 7 | Pricing Engine | Done |
 | 8 | Orders | Done |
 | 9 | Dispatch & Matching | Done |
-| 10 | Realtime | **Done** |
-| 11 | Live Location Tracking | Not started |
+| 10 | Realtime | Done |
+| 11 | Live Location Tracking | **Done** |
 | 12 | Payments | Not started |
 | 13 | Financial Ledger & Commission | Not started |
 | 14 | Settlements | Not started |
@@ -320,6 +320,34 @@ test suite's default `null` broadcaster, which doesn't implement authorization l
 Not yet in this phase: no frontend (Echo/Reverb JS client) consumes any of this — that's Phase
 19+; no presence channels; no live-location broadcast (Phase 11 will very likely reuse the
 `orders.{orderPublicId}` channel for a new event type once trip tracking exists).
+
+## Phase 11 — Live Location Tracking (this phase)
+
+Implemented: two things that only make sense together. First, a driver-facing trip-status
+endpoint (`POST /api/v1/drivers/me/orders/{orderPublicId}/status`,
+`App\Domain\Orders\Actions\AdvanceTripStatusAction`) — genuinely missing until now, meaning no
+order could ever progress past `provider_assigned` or reach a terminal state. It exposes exactly
+the seven-status forward chain (`provider_en_route` through `completed`), validated both by an
+explicit whitelist and by the state machine's own adjacency check, and mirrors the assigned tow
+truck's status forward in step — including, critically, `on_trip → available` on `completed`, a
+real gap left open since Phase 9 (nothing ever returned a truck to service after a trip). The
+same gap existed for cancellation (`CancelOrderAction` never freed a reserved truck); fixed in
+the same pass. Second, live GPS reporting (`POST /api/v1/drivers/me/location`,
+`App\Domain\Tracking\Actions\RecordLocationPingAction`) — keeps `tow_trucks.current_latitude`/
+`current_longitude` fresh (no real update path existed before this phase, despite Phase 9's
+dispatch search depending on that data), and, while the driver has an order in an active trip
+status, records an append-only breadcrumb and broadcasts it live on the same
+`orders.{orderPublicId}` channel Phase 10 introduced — reused exactly as that phase's docs
+anticipated. `GET .../orders/{order}/location` (customer and admin) returns the current position
+plus a bounded recent path, falling back to the tow truck's last known position before any trip
+ping has arrived. See `docs/LIVE_LOCATION_TRACKING.md` for full details.
+
+Not yet in this phase: no map visualization (frontend, Phase 19+); no geofencing (arrival is
+driver-reported, not auto-detected); no distance/duration computation from the breadcrumb trail;
+no driver-initiated cancellation endpoint (the `OrderCancelledBy::Provider` enum case has existed
+since Phase 8 but nothing exposes it); still no PostGIS — `order_location_pings` uses the same
+plain-decimal trade-off as `tow_trucks.current_latitude`/`current_longitude` from Phase 9, with
+no immediate pressure to convert since nothing here does a spatial query.
 
 ## Definition of Done for every phase
 

@@ -6,8 +6,10 @@ use App\Domain\Orders\Actions\CancelOrderAction;
 use App\Domain\Orders\Enums\OrderCancelledBy;
 use App\Domain\Orders\Exceptions\OrderException;
 use App\Domain\Orders\Models\Order;
+use App\Domain\Tracking\Actions\GetOrderLocationAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Admin\ReasonRequest;
+use App\Http\Resources\Api\V1\OrderLocationPingResource;
 use App\Http\Resources\Api\V1\OrderResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\User;
@@ -41,6 +43,18 @@ class OrderController extends Controller
         $order->load(['vehicle', 'assignedProvider', 'assignedDriver.user', 'assignedTowTruck']);
 
         return ApiResponse::success(['order' => new OrderResource($order)]);
+    }
+
+    public function location(Request $request, Order $order, GetOrderLocationAction $action): JsonResponse
+    {
+        $order->loadMissing('assignedTowTruck');
+
+        $location = $action->handle($order, $request->integer('limit', 200));
+
+        return ApiResponse::success([
+            'current' => $location['current'],
+            'path' => OrderLocationPingResource::collection($location['path']),
+        ]);
     }
 
     public function cancel(ReasonRequest $request, Order $order, CancelOrderAction $action): JsonResponse
