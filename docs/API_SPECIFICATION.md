@@ -2,10 +2,10 @@
 
 ## Status
 
-Phase 11: authentication, admin role-management, provider onboarding/compliance, fleet/driver
+Phase 12: authentication, admin role-management, provider onboarding/compliance, fleet/driver
 management, customer profile/vehicle/saved-location, maps/cities, pricing, order, dispatch,
-realtime-auth, and live-location/trip-status endpoints exist (listed below). The actual OpenAPI
-3.x document will live at
+realtime-auth, live-location/trip-status, and payment endpoints exist (listed below). The actual
+OpenAPI 3.x document will live at
 `packages/api-contracts/openapi.yaml`, generated/maintained starting once the endpoint surface
 stabilizes further; for now this file is the source of truth and must stay in sync with the real
 routes in `apps/backend/routes/api.php` — never a description of an intended API that doesn't
@@ -92,6 +92,12 @@ exist yet.
 | POST | `/api/v1/drivers/me/orders/{orderPublicId}/status` | token ability `*` | Advances the driver's own order through the trip lifecycle (`provider_en_route` → `completed`) |
 | GET | `/api/v1/customers/me/orders/{orderPublicId}/location` | token ability `*` | Current position + recent path for the caller's own order |
 | GET | `/api/v1/admin/orders/{order}/location` | token ability `*` + permission `orders.view_all` | Current position + recent path, any order |
+| POST | `/api/v1/customers/me/orders/{orderPublicId}/payments` | customer token, rate-limited (`payment-create`), `Idempotency-Key` header supported | Creates a payment for a `vehicle_delivered`/`completed` order; server-recomputed amount, never client-supplied |
+| GET | `/api/v1/customers/me/orders/{orderPublicId}/payments` | customer token | Lists payment attempts for the caller's own order |
+| POST | `/api/v1/webhooks/payments/{gateway}` | none — signature-verified internally, rate-limited (`webhook`) | Gateway confirms capture/failure asynchronously |
+| GET | `/api/v1/admin/payments` | token ability `*` + permission `payments.view` | Lists/filters all payments by status |
+| GET | `/api/v1/admin/payments/{payment}` | token ability `*` + permission `payments.view` | Payment detail + refund history |
+| POST | `/api/v1/admin/payments/{payment}/refund` | token ability `*` + permission `payments.refund` | Full or partial refund (audited) |
 | GET | `/api/v1/health` | none | Dependency health check |
 
 ## Versioning

@@ -20,12 +20,13 @@ abstract class TestCase extends BaseTestCase
      * more than one authenticated request as different users/tokens.
      *
      * @param  array<string, mixed>  $data
+     * @param  array<string, string>  $headers
      */
-    protected function actingAsToken(string $method, string $token, string $uri, array $data = []): TestResponse
+    protected function actingAsToken(string $method, string $token, string $uri, array $data = [], array $headers = []): TestResponse
     {
         Auth::forgetGuards();
 
-        return $this->withToken($token)->json($method, $uri, $data);
+        return $this->withToken($token)->withHeaders($headers)->json($method, $uri, $data);
     }
 
     protected function tokenFor(User $user, array $abilities = ['*']): string

@@ -20,8 +20,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 8 | Orders | Done |
 | 9 | Dispatch & Matching | Done |
 | 10 | Realtime | Done |
-| 11 | Live Location Tracking | **Done** |
-| 12 | Payments | Not started |
+| 11 | Live Location Tracking | Done |
+| 12 | Payments | **Done** |
 | 13 | Financial Ledger & Commission | Not started |
 | 14 | Settlements | Not started |
 | 15 | Reviews & Disputes | Not started |
@@ -348,6 +348,38 @@ no driver-initiated cancellation endpoint (the `OrderCancelledBy::Provider` enum
 since Phase 8 but nothing exposes it); still no PostGIS — `order_location_pings` uses the same
 plain-decimal trade-off as `tow_trucks.current_latitude`/`current_longitude` from Phase 9, with
 no immediate pressure to convert since nothing here does a spatial query.
+
+## Phase 12 — Payments (this phase)
+
+Implemented: `App\Domain\Payments` — a gateway abstraction
+(`App\Domain\Payments\Contracts\PaymentGateway`) with a fake adapter as the only implementation
+(no real gateway account exists yet, matching the SMS/Maps provider pattern), a `PaymentStatus`
+state machine mirroring `OrderStatus`'s design exactly, and the customer/admin/webhook endpoints
+that create, confirm, and refund payments. `App\Domain\Payments\Services\PaymentStateMachine` is
+the single choke point every payment status change goes through — used identically by a
+synchronous cash capture (`CreatePaymentAction`) and an async card confirmation
+(`ProcessPaymentWebhookAction`) — which updates `orders.final_price` on capture and broadcasts
+`PaymentCaptured`/`PaymentFailed` on the existing `orders.{orderPublicId}` channel (Phase 10).
+Webhook handling verifies a real HMAC signature (even against the fake gateway — not a stub that
+always passes), is idempotent per `(gateway, event_id)`, and never fails loudly for a stale/
+unknown event, per `docs/PAYMENT_ARCHITECTURE.md` §Webhooks. Payment creation supports an
+`Idempotency-Key` header so a client retry can never double-charge. A payment can only be
+created once an order reaches `vehicle_delivered`/`completed`, matching the product requirement
+("Trip completes; customer pays") literally. Refunds (full or partial, tracked separately in
+`refunds`) are admin/finance-initiated only and always audited; `payments.view`/`payments.refund`
+were already seeded to `finance_officer` back in Phase 2, so no permission catalog changes were
+needed.
+
+**Scope note, deliberate**: the Phase 0 design sketch listed a separate `authorize` method on the
+gateway interface; it was dropped once the phase actually landed, since nothing in this product
+needs a hold-then-capture-later flow — the same kind of refinement Phase 8 made when it dropped
+the speculative `draft`/`quote_ready` order states.
+
+Not yet in this phase: a real gateway adapter (no credentials exist); financial ledger/commission/
+settlements (Phase 13/14) — a captured payment generates no ledger entries or payout calculation
+yet; automatic refund-on-cancellation (no cancellation-fee policy has ever been defined, so a
+human decides for now); a reconciliation job polling stuck-`pending` payments (the
+`getPaymentStatus()` interface method exists but nothing calls it on a schedule).
 
 ## Definition of Done for every phase
 

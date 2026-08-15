@@ -109,9 +109,9 @@ customer is ready to actually book — there's no intermediate persisted draft s
 
 ## Not yet implemented
 
-- Payments (Phase 12) — `payment_method` is always `cash`, `final_price` is always `null`.
-- Disputes/refunds workflow (Phase 15) — the `disputed`/`refund_pending`/`refunded` states exist
-  in the matrix but nothing drives them yet.
+- Disputes/refunds workflow (Phase 15) — the `disputed`/`refund_pending`/`refunded` order states
+  exist in the matrix but nothing drives them yet (payment-level refunds are implemented, see
+  `docs/PAYMENT_ARCHITECTURE.md`, but they don't move `orders.status`).
 - Driver-initiated cancellation — `OrderCancelledBy::Provider` has existed as a valid enum case
   since this phase, but no endpoint exposes it yet.
 

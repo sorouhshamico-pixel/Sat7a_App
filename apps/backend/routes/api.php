@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\Admin\DispatchController as AdminDispatchControl
 use App\Http\Controllers\Api\V1\Admin\DocumentVerificationController;
 use App\Http\Controllers\Api\V1\Admin\DriverController as AdminDriverController;
 use App\Http\Controllers\Api\V1\Admin\OrderController as AdminOrderController;
+use App\Http\Controllers\Api\V1\Admin\PaymentController as AdminPaymentController;
 use App\Http\Controllers\Api\V1\Admin\PricingController as AdminPricingController;
 use App\Http\Controllers\Api\V1\Admin\ProviderController as AdminProviderController;
 use App\Http\Controllers\Api\V1\Admin\RoleController;
@@ -24,11 +25,13 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Maps\CityController;
 use App\Http\Controllers\Api\V1\Maps\MapsController;
 use App\Http\Controllers\Api\V1\Orders\OrderController;
+use App\Http\Controllers\Api\V1\Orders\PaymentController;
 use App\Http\Controllers\Api\V1\Pricing\QuoteController;
 use App\Http\Controllers\Api\V1\Providers\ProviderController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDocumentController;
 use App\Http\Controllers\Api\V1\Providers\ProviderDriverController;
 use App\Http\Controllers\Api\V1\Providers\ProviderFleetController;
+use App\Http\Controllers\Api\V1\Webhooks\PaymentWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -169,6 +172,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('/me/orders/{orderPublicId}/timeline', [OrderController::class, 'timeline'])->name('me.orders.timeline');
         Route::get('/me/orders/{orderPublicId}/location', [OrderController::class, 'location'])->name('me.orders.location');
         Route::post('/me/orders/{orderPublicId}/cancel', [OrderController::class, 'cancel'])->name('me.orders.cancel');
+
+        // Payments — see docs/PAYMENT_ARCHITECTURE.md. Same ownership
+        // scoping as every other me/orders/... sub-resource.
+        Route::get('/me/orders/{orderPublicId}/payments', [PaymentController::class, 'index'])->name('me.orders.payments.index');
+        Route::post('/me/orders/{orderPublicId}/payments', [PaymentController::class, 'store'])
+            ->middleware('throttle:payment-create')
+            ->name('me.orders.payments.store');
     });
 
     // Shared document download — access is permission/ownership-checked
@@ -193,6 +203,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
     Route::post('/pricing/quote', [QuoteController::class, 'store'])
         ->middleware('throttle:quote')
         ->name('pricing.quote');
+
+    // Public — the payment gateway itself calls this; trust comes from
+    // signature verification inside the handler, never Sanctum (see
+    // docs/PAYMENT_ARCHITECTURE.md §Webhooks).
+    Route::post('/webhooks/payments/{gateway}', [PaymentWebhookController::class, 'handle'])
+        ->middleware('throttle:webhook')
+        ->name('webhooks.payments');
 
     // Admin/platform management. Fully-privileged token required, plus the
     // specific permission for each action (see docs/ROLES_PERMISSIONS.md).
@@ -262,5 +279,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/orders/{order}/dispatch/retry', [AdminDispatchController::class, 'retry'])->name('orders.dispatch.retry');
             Route::post('/orders/{order}/dispatch/assign', [AdminDispatchController::class, 'assign'])->name('orders.dispatch.assign');
         });
+
+        Route::middleware('can:payments.view')->group(function (): void {
+            Route::get('/payments', [AdminPaymentController::class, 'index'])->name('payments.index');
+            Route::get('/payments/{payment}', [AdminPaymentController::class, 'show'])->name('payments.show');
+        });
+        Route::post('/payments/{payment}/refund', [AdminPaymentController::class, 'refund'])
+            ->middleware('can:payments.refund')
+            ->name('payments.refund');
     });
 });

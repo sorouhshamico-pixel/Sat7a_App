@@ -42,4 +42,11 @@ enum ErrorCode: string
     case OrderNotDispatchable = 'ORDER_NOT_DISPATCHABLE';
     case DispatchOfferNoLongerAvailable = 'DISPATCH_OFFER_NO_LONGER_AVAILABLE';
     case TowTruckNotEligible = 'TOW_TRUCK_NOT_ELIGIBLE';
+
+    case OrderNotPayable = 'ORDER_NOT_PAYABLE';
+    case PaymentAlreadyActive = 'PAYMENT_ALREADY_ACTIVE';
+    case PaymentInvalidTransition = 'PAYMENT_INVALID_TRANSITION';
+    case PaymentNotRefundable = 'PAYMENT_NOT_REFUNDABLE';
+    case RefundExceedsAvailableAmount = 'REFUND_EXCEEDS_AVAILABLE_AMOUNT';
+    case WebhookSignatureInvalid = 'WEBHOOK_SIGNATURE_INVALID';
 }

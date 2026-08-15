@@ -45,4 +45,20 @@ return [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'payments' => [
+        'driver' => env('PAYMENT_GATEWAY_DRIVER', 'fake'),
+        'public_key' => env('PAYMENT_GATEWAY_PUBLIC_KEY'),
+        'secret_key' => env('PAYMENT_GATEWAY_SECRET_KEY'),
+        'webhook_secret' => env('PAYMENT_GATEWAY_WEBHOOK_SECRET'),
+        'fake' => [
+            // A real gateway secret is never set for a driver nobody has
+            // credentials for — this fallback lets the fake adapter's
+            // webhook signature verification (see
+            // App\Domain\Payments\Adapters\Fake\FakePaymentGateway) still
+            // run for real in dev/tests instead of trivially always
+            // passing.
+            'webhook_secret' => env('PAYMENT_GATEWAY_WEBHOOK_SECRET') ?: 'fake-gateway-local-dev-webhook-secret',
+        ],
+    ],
+
 ];

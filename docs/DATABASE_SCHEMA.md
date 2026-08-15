@@ -55,9 +55,11 @@ Haversine query against `tow_trucks.current_latitude`/`current_longitude` instea
 - `orders` — `customer_id`, `vehicle_id`, `service_type`, pickup/dropoff lat+lng+formatted
   address (plain decimals, not yet PostGIS — see §Geography below), `status` (state machine, see
   `App\Domain\Orders\Enums\OrderStatus`), `pricing_snapshot` (JSON, frozen `PricingSnapshot` from
-  Phase 7), `quoted_price`, `final_price` (nullable, reserved for Phase 12), `payment_method`
-  (always `cash` for now), `assigned_provider_id`/`assigned_driver_id`/`assigned_tow_truck_id`
-  (nullable, reserved for Phase 9), `cancelled_by`/`cancellation_reason`/`cancellation_fee`, and
+  Phase 7), `quoted_price`, `final_price` (nullable — set to the payment's amount once a payment
+  captures, see `docs/PAYMENT_ARCHITECTURE.md`, Phase 12), `payment_method` (always `cash` for
+  now — the actual method used for a payment attempt is `payments.method`, Phase 12),
+  `assigned_provider_id`/`assigned_driver_id`/`assigned_tow_truck_id` (nullable, set by dispatch
+  acceptance/manual assignment, Phase 9), `cancelled_by`/`cancellation_reason`/`cancellation_fee`, and
   a set of nullable lifecycle timestamps (`accepted_at`, `arrived_at`, `trip_started_at`,
   `completed_at`, `cancelled_at`) (Phase 8).
 - `order_status_history` — append-only; `order_id`, `from_status` (nullable — null on the
@@ -78,6 +80,21 @@ Haversine query against `tow_trucks.current_latitude`/`current_longitude` instea
   `created_at`, the server receipt time). Written only by
   `App\Domain\Tracking\Actions\RecordLocationPingAction`. See
   `docs/LIVE_LOCATION_TRACKING.md` (Phase 11).
+- `payments` — `order_id` (not unique; an order may have more than one payment attempt over its
+  life, e.g. a failed card retry), `customer_id`, `gateway`, `gateway_payment_id`, `method`
+  (state machine, see `App\Domain\Payments\Enums\PaymentMethod`), `amount`, `currency`, `status`
+  (state machine, see `App\Domain\Payments\Enums\PaymentStatus`), `card_brand`/`card_last_four`
+  (safe metadata only — never PAN/CVV), `failure_reason`, `idempotency_key` (unique, nullable),
+  and lifecycle timestamps (`authorized_at`/`captured_at`/`failed_at`/`cancelled_at`). See
+  `docs/PAYMENT_ARCHITECTURE.md` (Phase 12).
+- `refunds` — `payment_id`, `initiated_by` (nullable FK user), `amount`, `reason`, `status`
+  (state machine, see `App\Domain\Payments\Enums\RefundStatus`), `gateway_refund_id`,
+  `failure_reason`. Append-only — a captured payment can be refunded more than once (partial
+  refunds), each attempt its own row (Phase 12).
+- `payment_webhook_events` — idempotency ledger for inbound gateway webhooks: `gateway`,
+  `event_id` (unique together), `event_type`, `payload` (JSON, redacted of sensitive values
+  before storage), `processed_at`. Written only by
+  `App\Domain\Payments\Actions\ProcessPaymentWebhookAction` (Phase 12).
 
 ## Engine
 

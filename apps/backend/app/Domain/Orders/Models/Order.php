@@ -10,6 +10,7 @@ use App\Domain\Fleet\Models\TowTruck;
 use App\Domain\Orders\Enums\OrderCancelledBy;
 use App\Domain\Orders\Enums\OrderPaymentMethod;
 use App\Domain\Orders\Enums\OrderStatus;
+use App\Domain\Payments\Models\Payment;
 use App\Domain\Providers\Models\Provider;
 use App\Support\Concerns\HasUlid;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -104,5 +105,13 @@ class Order extends Model
     public function dispatchOffers(): HasMany
     {
         return $this->hasMany(DispatchOffer::class);
+    }
+
+    /**
+     * @return HasMany<Payment, $this>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 }

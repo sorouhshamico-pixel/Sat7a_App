@@ -101,6 +101,8 @@ super-admin action is exempt from this.
 | Pricing quote | 20 / min per user or IP — implemented, Phase 7 |
 | Admin login | strict, tighter than customer login |
 | Driver location ping | 60 / min per driver — implemented, Phase 11 |
+| Payment creation | 10 / 10 min per user or IP — implemented, Phase 12 |
+| Payment webhook | 120 / min per IP — implemented, Phase 12 (public, unauthenticated) |
 
 ## Security headers (implemented, Phase 0)
 

@@ -83,4 +83,16 @@ enum OrderStatus: string
     {
         return in_array($this, self::customerCancellable(), true);
     }
+
+    /**
+     * Whether a payment can be created for an order in this status — see
+     * docs/PAYMENT_ARCHITECTURE.md and docs/PRODUCT_REQUIREMENTS.md
+     * ("Trip completes; customer pays"). Deliberately narrow: payment is
+     * a post-service concern, not a pre-authorization/deposit one — no
+     * such flow has been asked for.
+     */
+    public function isPayable(): bool
+    {
+        return in_array($this, [self::VehicleDelivered, self::Completed], true);
+    }
 }
