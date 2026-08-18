@@ -93,6 +93,13 @@ lang="ar"`) with English as a future secondary locale. Server state via TanStack
 via React Hook Form + Zod, UI primitives via Tailwind + shadcn/ui-style components defined
 once in a shared design system (`docs/` design tokens documented alongside components).
 
+The admin surface (Phase 17, `docs/OPERATIONS_COMMAND_CENTER.md`) never calls the Laravel API
+directly from a client component — every request goes through a same-origin Next.js Route
+Handler proxy that attaches the session token server-side from an httpOnly cookie, so the
+Sanctum token never reaches browser JavaScript. This BFF pattern is the template for every
+future authenticated surface in this app (customer/provider web, Phases 19-20), not something
+specific to the admin screens.
+
 ## 9. Environments
 
 `local`, `testing`, `staging`, `production`. Local development on this project currently runs

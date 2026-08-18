@@ -6,8 +6,6 @@ describe("HomePage", () => {
   it("renders the platform heading", () => {
     render(<HomePage />);
 
-    expect(
-      screen.getByRole("heading", { name: "منصة سطحات الرياض" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "منصة سطحات الرياض" })).toBeInTheDocument();
   });
 });

@@ -25,8 +25,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 13 | Financial Ledger & Commission | Done |
 | 14 | Settlements | Done |
 | 15 | Reviews & Disputes | Done |
-| 16 | Notifications | **Done** |
-| 17 | Operations Command Center | Not started |
+| 16 | Notifications | Done |
+| 17 | Operations Command Center | **Done** |
 | 18 | Finance & Compliance Admin | Not started |
 | 19 | Customer Web App Polish | Not started |
 | 20 | Provider Web / PWA | Not started |
@@ -538,6 +538,48 @@ notification preferences (customer-only, as before); a "mark all read" endpoint;
 reviews, disputes, settlements, or payments (bounded to the two explicitly-deferred integration
 points from earlier phases — wiring up more event sources going forward is a small, mechanical
 addition, not a redesign).
+
+## Phase 17 — Operations Command Center (this phase)
+
+Implemented: the first real UI in `apps/web` — everything before this phase was backend-only.
+See `docs/OPERATIONS_COMMAND_CENTER.md` for the full write-up; summary here.
+
+Admin login mirrors the backend's mandatory two-step flow (password, then MFA setup-or-challenge
+— `docs/SECURITY.md` §Authentication) via a cookie-based BFF: Next.js Route Handlers
+(`src/app/api/auth/...`) hold the short-lived MFA token only in the login page's own React
+state, and write the real Sanctum session to an httpOnly cookie only once MFA succeeds
+(`src/lib/session.ts`). Every authenticated admin screen calls a single generic proxy
+(`src/app/api/backend/[...path]/route.ts`) that attaches that cookie's token server-side — the
+session token never reaches client-side JavaScript. Built: admin Orders (list/detail, dispatch
+retry/manual-assign/cancel) and Disputes (list/detail/advance-status) against the existing
+Phase 8/9/15 admin API endpoints, a small hand-rolled Tailwind UI kit, and TanStack Query for
+all server state.
+
+**Two real bugs found while testing this phase against a live backend, neither introduced by
+it**:
+
+1. `App\Domain\Authorization\Concerns\HasRoles::cachedPermissionSet()` (which backs
+   `Gate::before`, run on nearly every authenticated request) cached `Illuminate\Support\
+   Collection` objects. Under `CACHE_STORE=array` (the whole PHPUnit suite) this looked fine;
+   under `CACHE_STORE=redis` (local dev's `.env`, presumably production) every request past the
+   first cache write came back `__PHP_Incomplete_Class`, because Laravel's secure-by-default
+   `serializable_classes = false` blocks unserializing any object out of the cache. Fixed by
+   caching plain arrays instead — see `docs/SECURITY.md` §Cache deserialization. This was a
+   pre-existing, cross-cutting bug affecting every phase's authorization checks, not specific to
+   this one; fixed and shipped as its own commit before continuing this phase's frontend work.
+2. Next.js 16 renamed `middleware.ts` to `proxy.ts` (silently ignoring the old filename), and
+   with this app's `src/` layout the file must additionally live at `src/proxy.ts`, not the
+   project root. Getting either wrong means every `/admin/*` route renders with **no auth gate
+   at all** — caught only by a Playwright e2e test actually navigating to a protected route
+   unauthenticated, not by any vitest/component test, since those mock `fetch()` and never
+   exercise real routing.
+
+Not yet in this phase: handling an expired/revoked session mid-use (only the initial page load
+is gated); tow-truck search/autocomplete for manual dispatch (a raw ID text field, since no
+admin "list tow trucks" endpoint exists); realtime (WebSocket/Reverb) updates on any screen;
+dashboard metrics beyond two static links; permission-based UI hiding (the backend's own checks
+are the real boundary — a denied action surfaces its 403 inline); Finance & Compliance screens
+(Phase 18's scope).
 
 ## Definition of Done for every phase
 
