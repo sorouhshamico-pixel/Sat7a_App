@@ -4,7 +4,6 @@ namespace App\Domain\Authorization\Concerns;
 
 use App\Domain\Authorization\Models\Role;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 trait HasRoles
@@ -19,12 +18,12 @@ trait HasRoles
 
     public function hasRole(string $roleName): bool
     {
-        return $this->cachedPermissionSet()['roles']->contains($roleName);
+        return in_array($roleName, $this->cachedPermissionSet()['roles'], true);
     }
 
     public function hasPermission(string $permissionName): bool
     {
-        return $this->cachedPermissionSet()['permissions']->contains($permissionName);
+        return in_array($permissionName, $this->cachedPermissionSet()['permissions'], true);
     }
 
     /**
@@ -34,7 +33,19 @@ trait HasRoles
      * re-joining role_user/permission_role on every single check within a
      * request.
      *
-     * @return array{roles: Collection<int, string>, permissions: Collection<int, string>}
+     * Deliberately returns plain arrays, not Collections — see
+     * docs/SECURITY.md §Cache deserialization. Laravel's default
+     * `config('cache.serializable_classes')` is `false` (no class may be
+     * unserialized out of the cache, a hardening against gadget-chain
+     * attacks — see that config file's own comment), which silently turns
+     * any cached object into a useless `__PHP_Incomplete_Class` on every
+     * cache *hit* the moment a real serializing store (redis, memcached —
+     * anything but the array/array-like test store) is in use. Caching
+     * plain arrays here sidesteps the restriction entirely rather than
+     * loosening it, since there's never a legitimate reason to cache
+     * Collection objects instead of their underlying array.
+     *
+     * @return array{roles: list<string>, permissions: list<string>}
      */
     private function cachedPermissionSet(): array
     {
@@ -45,8 +56,8 @@ trait HasRoles
                 $roles = $this->roles()->with('permissions')->get();
 
                 return [
-                    'roles' => $roles->pluck('name'),
-                    'permissions' => $roles->flatMap(fn (Role $role) => $role->permissions->pluck('name'))->unique(),
+                    'roles' => $roles->pluck('name')->all(),
+                    'permissions' => $roles->flatMap(fn (Role $role) => $role->permissions->pluck('name'))->unique()->values()->all(),
                 ];
             },
         );

@@ -8,6 +8,15 @@ run via `php artisan test` / `composer test`. Feature tests hit real HTTP routes
 gateway and SMS provider use fake adapters so no external credentials are needed to run the
 suite (see `docs/PAYMENT_ARCHITECTURE.md`).
 
+`phpunit.xml` sets `CACHE_STORE=array` for speed and isolation — but that store never actually
+serializes anything, so it structurally cannot catch a bug that only exists in the real
+serialize/unserialize round-trip a production cache store does (see `docs/SECURITY.md` §Cache
+deserialization for a real bug this masked until Phase 17). Anything that caches an object
+(never a plain array/scalar — those are always safe) needs its own test that overrides
+`config(['cache.default' => 'redis'])` for that one test, the way
+`tests/Unit/Domain/Authorization/CachedPermissionSetTest.php` does; don't rely on the
+array-store default to exercise that path.
+
 Required coverage as each phase lands (not exhaustive, expanded per-phase): authentication,
 OTP, permissions, provider onboarding, document expiry, fleet, orders and state transitions,
 pricing, dispatch, **concurrency** (two providers accepting the same order, duplicate payment

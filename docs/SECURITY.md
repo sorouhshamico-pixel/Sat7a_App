@@ -79,6 +79,38 @@ See `docs/ROLES_PERMISSIONS.md` for the full catalog and mapping. Role assignmen
 itself gated behind the `roles.manage` permission (granted only to `super_admin`) and always
 audited.
 
+## Cache deserialization
+
+`config('cache.serializable_classes')` is `false` — Laravel's own secure default, meaning **no
+PHP object may be unserialized out of a cache read**, a hardening against gadget-chain attacks if
+`APP_KEY` ever leaked and an attacker could write to the cache store. This is intentional and
+should stay `false`; the fix for hitting it is never to loosen it (see the real bug below).
+
+**A real bug found while building Phase 17**: `App\Domain\Authorization\Concerns\HasRoles::
+cachedPermissionSet()` — which backs `Gate::before` and therefore runs on nearly every
+authenticated request — cached an array containing two `Illuminate\Support\Collection` objects.
+Under the array cache store (what the entire test suite uses via `CACHE_STORE=array` in
+`phpunit.xml`, since nothing is ever actually serialized there), this looked completely fine.
+The first time this code path ran against a real serializing store (`CACHE_STORE=redis` — both
+local dev's `.env` and, presumably, production), the *first* request (a cache miss, which only
+writes) worked; every subsequent request reading that same cache key came back as a useless
+`__PHP_Incomplete_Class` instead of a `Collection`, because the class-disallowing `unserialize()`
+call silently degrades any disallowed object rather than throwing — so `hasPermission()`/
+`hasRole()` would crash on essentially every second-and-later authenticated request. Invisible to
+the whole test suite for the same reason it's invisible to `CACHE_STORE=array`: nothing there
+ever round-trips through real serialization.
+
+Fixed by never caching an object in the first place — `cachedPermissionSet()` now returns plain
+arrays (`->pluck('name')->all()`, not `->pluck('name')`), which sidesteps the restriction
+entirely rather than adding `Illuminate\Support\Collection` to an allow-list (loosening the
+security hardening was never the right fix — there's no legitimate reason this cache entry needs
+to hold an object instead of its underlying array). Regression-tested in
+`tests/Unit/Domain/Authorization/CachedPermissionSetTest.php`, which deliberately forces the
+`redis` cache store for one test (everything else stays on the fast `array` store) and asserts a
+permission check survives a real write-then-separate-read cycle — the exact case the rest of the
+suite structurally cannot catch. Grepped the rest of the codebase for other `Cache::remember`/
+`Cache::put` call sites while fixing this; this was the only one.
+
 ## Audit logging (implemented, Phase 2)
 
 `App\Domain\Audit\Services\AuditLogger` writes an immutable row to `audit_logs`
