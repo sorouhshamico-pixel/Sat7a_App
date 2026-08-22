@@ -26,8 +26,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 14 | Settlements | Done |
 | 15 | Reviews & Disputes | Done |
 | 16 | Notifications | Done |
-| 17 | Operations Command Center | **Done** |
-| 18 | Finance & Compliance Admin | Not started |
+| 17 | Operations Command Center | Done |
+| 18 | Finance & Compliance Admin | **Done** |
 | 19 | Customer Web App Polish | Not started |
 | 20 | Provider Web / PWA | Not started |
 | 21 | PWA | Not started |
@@ -580,6 +580,42 @@ admin "list tow trucks" endpoint exists); realtime (WebSocket/Reverb) updates on
 dashboard metrics beyond two static links; permission-based UI hiding (the backend's own checks
 are the real boundary — a denied action surfaces its 403 inline); Finance & Compliance screens
 (Phase 18's scope).
+
+## Phase 18 — Finance & Compliance Admin (this phase)
+
+Implemented: the finance/compliance-side admin screens Phase 17 deliberately deferred — see
+`docs/FINANCE_COMPLIANCE_ADMIN.md` for the full write-up. No new plumbing: every screen reuses
+Phase 17's BFF auth/proxy, UI kit, and TanStack Query setup unchanged.
+
+Providers (`/admin/providers`, `/admin/providers/{id}`) is the biggest addition — a single
+"provider workspace" detail page combining compliance actions (approve/reject/suspend, gated by
+current `ProviderStatus`), per-document verify/reject, balance (the same three-bucket breakdown
+built for the provider's own dashboard in Phase 13, now visible to staff), bank account
+view/verify, generate-a-settlement-batch, and a read-only reviews list — five-plus backend
+resources behind one screen. Payments (`/admin/payments`, `.../{id}`) adds view + refund, the
+refund form only appearing while the payment is actually refundable. Settlements
+(`/admin/settlements`, `.../{id}`) adds view + the status-advance lifecycle, with the UI's next-
+status buttons computed from a client-side mirror of the backend's own
+`SettlementStatus::allowedTransitions()` matrix so an illegal transition is never even offered.
+
+**Three real bugs found while testing this phase against a live backend, all the same class**:
+`GetProviderBalanceAction`'s response, the bank-account endpoints, and the settlement-detail
+endpoint each wrap their payload one level deeper (`{"balance": {...}}`,
+`{"bank_account": {...}}`, `{"settlement": {...}}`) than the frontend initially assumed. This
+compiled cleanly — TypeScript's structural typing can't catch a shape mismatch against an
+`unknown` JSON response cast to a generic type — and would have rendered silent `undefined`
+values rather than throwing. Caught only by actually logging in, creating real data through the
+API, and reading the rendered page content (a throwaway Playwright script, not raw JSON
+inspection) — the same lesson Phase 17 drew from its `proxy.ts` bug, generalized: a mocked-fetch
+component test proves the component's own logic is right, never that its assumed data shape
+matches the real backend. The fix going forward is procedural, not code — grep the actual
+controller's `ApiResponse::success([...])` call before writing a new `apiGet<T>()` site, rather
+than assuming a shape from a sibling endpoint.
+
+Not yet in this phase: document preview/download in the admin UI (the backend endpoint returns
+raw bytes, not JSON, and wasn't wired through the BFF proxy); pagination on the three new list
+pages (Orders already has it; these don't yet, though the backend supports it identically);
+reviews moderation (still just a read-only embedded list); dashboard-level finance metrics.
 
 ## Definition of Done for every phase
 

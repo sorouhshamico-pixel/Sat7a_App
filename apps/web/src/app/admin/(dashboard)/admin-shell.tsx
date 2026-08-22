@@ -9,6 +9,9 @@ const NAV_ITEMS = [
   { href: "/admin", label: "لوحة التحكم" },
   { href: "/admin/orders", label: "الطلبات" },
   { href: "/admin/disputes", label: "النزاعات" },
+  { href: "/admin/providers", label: "مزودو الخدمة" },
+  { href: "/admin/payments", label: "المدفوعات" },
+  { href: "/admin/settlements", label: "التسويات" },
 ];
 
 export function AdminShell({

@@ -22,6 +22,29 @@ export default function DashboardHomePage() {
             <p className="text-sm text-gray-600">مراجعة نزاعات العملاء وحلّها أو رفضها.</p>
           </Card>
         </Link>
+
+        <Link href="/admin/providers">
+          <Card className="transition-shadow hover:shadow-md">
+            <CardTitle>مزودو الخدمة</CardTitle>
+            <p className="text-sm text-gray-600">
+              اعتماد مزودي الخدمة، توثيق مستنداتهم وحساباتهم البنكية، ومتابعة أرصدتهم.
+            </p>
+          </Card>
+        </Link>
+
+        <Link href="/admin/payments">
+          <Card className="transition-shadow hover:shadow-md">
+            <CardTitle>المدفوعات</CardTitle>
+            <p className="text-sm text-gray-600">عرض المدفوعات وإجراء عمليات الاسترداد.</p>
+          </Card>
+        </Link>
+
+        <Link href="/admin/settlements">
+          <Card className="transition-shadow hover:shadow-md">
+            <CardTitle>التسويات</CardTitle>
+            <p className="text-sm text-gray-600">متابعة دفعات تسوية مزودي الخدمة حتى السداد.</p>
+          </Card>
+        </Link>
       </div>
     </div>
   );
