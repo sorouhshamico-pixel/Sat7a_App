@@ -27,8 +27,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 15 | Reviews & Disputes | Done |
 | 16 | Notifications | Done |
 | 17 | Operations Command Center | Done |
-| 18 | Finance & Compliance Admin | **Done** |
-| 19 | Customer Web App Polish | Not started |
+| 18 | Finance & Compliance Admin | Done |
+| 19 | Customer Web App Polish | **Done** |
 | 20 | Provider Web / PWA | Not started |
 | 21 | PWA | Not started |
 | 22 | Marketing & SEO | Not started |
@@ -616,6 +616,36 @@ Not yet in this phase: document preview/download in the admin UI (the backend en
 raw bytes, not JSON, and wasn't wired through the BFF proxy); pagination on the three new list
 pages (Orders already has it; these don't yet, though the backend supports it identically);
 reviews moderation (still just a read-only embedded list); dashboard-level finance metrics.
+
+## Phase 19 — Customer Web App Polish (this phase)
+
+Implemented: the customer-facing counterpart to Phases 17/18's admin app — see
+`docs/CUSTOMER_WEB_APP.md` for the full write-up. Extended the existing generic backend proxy
+(`src/app/api/backend/[...path]/route.ts`) and `src/proxy.ts` from admin-only to a three-tier
+model: admin paths (`admin_session` cookie, unchanged), customer paths (new `customer_session`
+cookie, single-step phone+OTP auth), and a public/guest allowlist (`maps/`, `pricing/quote`,
+`cities`, `health`) needed so a guest can build a price quote before authenticating at all.
+
+Built: a guest quote builder (text-based address autocomplete against the existing public maps
+endpoints, since no real Google Maps key exists and the backend already falls back to fake
+adapters — no map SDK embedded), phone+OTP login, vehicle management, order creation (the quote
+selection round-trips through `/orders/new` URL query params, surviving an auth redirect via
+`?next=`), order tracking (5-second REST polling of the existing location endpoint, not
+WebSocket — deferred per `docs/REALTIME.md`'s own framing), cash-only payment (the fake payment
+gateway's card flow returns an unreachable checkout URL requiring a webhook nothing in dev can
+trigger), and review/dispute submission on completed orders.
+
+**Three real bugs found while testing this phase against a live backend, all caught via live
+Playwright verification rather than mocked tests**: an address-search component re-triggering
+its own search effect immediately after a selection (selecting a suggestion set the same `query`
+state the search effect watched); a "Get Quote" button clickable before an async place-details
+lookup had resolved into parent state, producing a confusing false-negative validation error;
+and a live-tracking display rendering the literal text "Invalid Date" when
+`GetOrderLocationAction` falls back to a tow truck's last-known position with a null
+`recorded_at`. Full root causes and fixes in `docs/CUSTOMER_WEB_APP.md`.
+
+Not yet in this phase: card payment UI; real-time WebSocket tracking; a pin-dropping map picker;
+in-app notification center; order-history pagination; profile/settings page.
 
 ## Definition of Done for every phase
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/session-constants";
+import { CUSTOMER_SESSION_COOKIE } from "@/lib/customer-session-constants";
 
 // Lives at src/proxy.ts, not the project root — this app uses a src/
 // directory, and Next.js requires proxy.ts to sit alongside app/ (see
@@ -15,24 +16,53 @@ import { SESSION_COOKIE } from "@/lib/session-constants";
 // (see docs/OPERATIONS_COMMAND_CENTER.md §Authentication). This proxy
 // only exists to stop an unauthenticated visitor from ever rendering a
 // protected page's shell in the first place.
-export function proxy(request: NextRequest) {
-  const hasSession = request.cookies.has(SESSION_COOKIE);
-  const isLoginPage = request.nextUrl.pathname === "/admin/login";
+//
+// Two independent gates share this one file: `/admin/*` (staff, MFA
+// session) and the customer-only route tree (`/orders/*`, `/vehicles/*`,
+// phone+OTP session) — see docs/CUSTOMER_WEB_APP.md §Authentication. `/`
+// and `/login` stay public, since a guest builds a quote before
+// authenticating (docs/PRODUCT_REQUIREMENTS.md §Core customer journey).
+const CUSTOMER_PROTECTED_PREFIXES = ["/orders", "/vehicles"];
 
-  if (!hasSession && !isLoginPage) {
-    const loginUrl = new URL("/admin/login", request.url);
-    loginUrl.searchParams.set("next", request.nextUrl.pathname);
+export function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/admin")) {
+    const hasSession = request.cookies.has(SESSION_COOKIE);
+    const isLoginPage = pathname === "/admin/login";
+
+    if (!hasSession && !isLoginPage) {
+      const loginUrl = new URL("/admin/login", request.url);
+      loginUrl.searchParams.set("next", pathname);
+
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (hasSession && isLoginPage) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+
+    return NextResponse.next();
+  }
+
+  const hasCustomerSession = request.cookies.has(CUSTOMER_SESSION_COOKIE);
+  const isProtected = CUSTOMER_PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  const isLoginPage = pathname === "/login";
+
+  if (isProtected && !hasCustomerSession) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", pathname + request.nextUrl.search);
 
     return NextResponse.redirect(loginUrl);
   }
 
-  if (hasSession && isLoginPage) {
-    return NextResponse.redirect(new URL("/admin", request.url));
+  if (hasCustomerSession && isLoginPage) {
+    return NextResponse.redirect(new URL("/orders", request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/orders/:path*", "/vehicles/:path*", "/login"],
 };
