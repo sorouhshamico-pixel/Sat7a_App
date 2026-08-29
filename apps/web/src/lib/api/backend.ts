@@ -36,7 +36,13 @@ export async function callBackend<T = unknown>(
     Accept: "application/json",
   };
 
-  if (options.body !== undefined) {
+  const isFormData = options.body instanceof FormData;
+
+  // A FormData body (document upload — see
+  // src/lib/api/client.ts's apiUpload) must NOT get a JSON Content-Type:
+  // fetch needs to set its own multipart boundary, and passing FormData
+  // straight through here re-encodes it with a fresh one.
+  if (options.body !== undefined && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
 
@@ -47,7 +53,12 @@ export async function callBackend<T = unknown>(
   const response = await fetch(url, {
     method: options.method ?? "GET",
     headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    body:
+      options.body === undefined
+        ? undefined
+        : isFormData
+          ? (options.body as FormData)
+          : JSON.stringify(options.body),
     cache: "no-store",
   });
 

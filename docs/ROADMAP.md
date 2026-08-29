@@ -28,8 +28,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 16 | Notifications | Done |
 | 17 | Operations Command Center | Done |
 | 18 | Finance & Compliance Admin | Done |
-| 19 | Customer Web App Polish | **Done** |
-| 20 | Provider Web / PWA | Not started |
+| 19 | Customer Web App Polish | Done |
+| 20 | Provider Web / PWA | **Done** |
 | 21 | PWA | Not started |
 | 22 | Marketing & SEO | Not started |
 | 23 | Security Hardening | Not started |
@@ -646,6 +646,48 @@ and a live-tracking display rendering the literal text "Invalid Date" when
 
 Not yet in this phase: card payment UI; real-time WebSocket tracking; a pin-dropping map picker;
 in-app notification center; order-history pagination; profile/settings page.
+
+## Phase 20 — Provider Web / PWA (this phase)
+
+Implemented: the provider-facing counterpart to Phase 19's customer app — see
+`docs/PROVIDER_WEB_APP.md` for the full write-up. One app (`src/app/provider`) serves every
+provider-staff role (owner, fleet manager, driver) from a single phone+OTP login — the same
+single-step flow as the customer app, but an unrecognized phone is a hard failure rather than a
+silent signup, since provider-staff accounts are always provisioned in advance. The backend's
+own permission gates are the real boundary; a denied action surfaces its 403 inline, same
+decision Phase 17 made for the admin app.
+
+Built: business profile (view/edit), fleet (list/add/assign-driver/status), drivers
+(list/add/toggle-availability), documents (list/upload), bank account (view/update), balance +
+settlements (read-only), reviews (read-only), and a driver-specific "My Trips" screen
+(dispatch-offer inbox, accept/reject, trip-status advance, live location sharing via the browser
+Geolocation API).
+
+Extended the Phase 19 three-tier backend proxy to four tiers (admin / provider-staff / customer /
+shared-by-cookie-presence / public), and gave it PATCH, PUT, DELETE, and multipart
+(`FormData`) passthrough for the first time — previously GET/POST-only and JSON-only, since
+neither the admin nor customer app had needed a file upload or a PATCH/PUT call before this
+phase.
+
+**No new bugs found** — every mutation (profile edit, fleet driver-assign, fleet status-change,
+document upload, bank account save, dispatch-offer accept, trip-status advance, location
+sharing) was exercised against a live backend through the real rendered UI, including a
+deliberately-invalid file upload to confirm Laravel's content-based MIME validation surfaces
+correctly through the new multipart proxy path. Two apparent test failures turned out to be
+locator mistakes (matching a hidden `<option>` tag; expecting a button for a status that was
+actually shown as a read-only badge), not application bugs — see `docs/PROVIDER_WEB_APP.md` for
+detail.
+
+One real backend gap was discovered and documented, not worked around with fake data: there is
+no `GET` endpoint for a driver to fetch their own active order (only accept-offer and
+advance-status, which each happen to return it). The UI caches the last-known active order in
+`localStorage`, which correctly survives a page reload but goes stale if the order advances
+through any other channel — an honest limitation, not a bug, pending the missing endpoint.
+
+Not yet in this phase: self-serve provider registration web form (only staff login for an
+already-provisioned provider); document preview/download; settlement-batch generation from the
+provider side (admin-only action); list pagination; a driver self-service online/offline toggle
+distinct from location sharing; real-time WebSocket updates on the dispatch-offer inbox.
 
 ## Definition of Done for every phase
 

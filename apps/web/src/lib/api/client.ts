@@ -35,3 +35,36 @@ export function apiGet<T>(path: string, searchParams?: Record<string, string>) {
 export function apiPost<T>(path: string, body?: unknown) {
   return request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
 }
+
+export function apiPatch<T>(path: string, body?: unknown) {
+  return request<T>(path, { method: "PATCH", body: body ? JSON.stringify(body) : undefined });
+}
+
+export function apiPut<T>(path: string, body?: unknown) {
+  return request<T>(path, { method: "PUT", body: body ? JSON.stringify(body) : undefined });
+}
+
+// Document upload only — sends a browser FormData body as-is (no JSON
+// Content-Type header, so fetch sets its own multipart boundary), all the
+// way through src/app/api/backend/[...path]/route.ts to Laravel's
+// multipart-validated UploadDocumentRequest (see docs/PROVIDER_WEB_APP.md).
+export async function apiUpload<T>(
+  path: string,
+  formData: FormData,
+): Promise<{ data: T; meta: Record<string, unknown> }> {
+  const response = await fetch(`/api/backend/${path.replace(/^\/+/, "")}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const envelope = (await response.json()) as ApiEnvelope<T>;
+
+  if (!response.ok || envelope.errors) {
+    throw new ApiRequestError(
+      response.status,
+      envelope.errors ?? [{ code: "UNKNOWN", message: "Request failed" }],
+    );
+  }
+
+  return { data: envelope.data as T, meta: envelope.meta };
+}

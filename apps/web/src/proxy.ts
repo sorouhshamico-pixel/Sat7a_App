@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/session-constants";
 import { CUSTOMER_SESSION_COOKIE } from "@/lib/customer-session-constants";
+import { PROVIDER_SESSION_COOKIE } from "@/lib/provider-session-constants";
 
 // Lives at src/proxy.ts, not the project root — this app uses a src/
 // directory, and Next.js requires proxy.ts to sit alongside app/ (see
@@ -17,11 +18,13 @@ import { CUSTOMER_SESSION_COOKIE } from "@/lib/customer-session-constants";
 // only exists to stop an unauthenticated visitor from ever rendering a
 // protected page's shell in the first place.
 //
-// Two independent gates share this one file: `/admin/*` (staff, MFA
-// session) and the customer-only route tree (`/orders/*`, `/vehicles/*`,
-// phone+OTP session) — see docs/CUSTOMER_WEB_APP.md §Authentication. `/`
-// and `/login` stay public, since a guest builds a quote before
-// authenticating (docs/PRODUCT_REQUIREMENTS.md §Core customer journey).
+// Three independent gates share this one file: `/admin/*` (staff, MFA
+// session), the customer-only route tree (`/orders/*`, `/vehicles/*`,
+// phone+OTP session) — see docs/CUSTOMER_WEB_APP.md §Authentication — and
+// `/provider/*` (provider-staff, phone+OTP session) — see
+// docs/PROVIDER_WEB_APP.md §Authentication. `/` and `/login` stay public,
+// since a guest builds a quote before authenticating
+// (docs/PRODUCT_REQUIREMENTS.md §Core customer journey).
 const CUSTOMER_PROTECTED_PREFIXES = ["/orders", "/vehicles"];
 
 export function proxy(request: NextRequest) {
@@ -40,6 +43,24 @@ export function proxy(request: NextRequest) {
 
     if (hasSession && isLoginPage) {
       return NextResponse.redirect(new URL("/admin", request.url));
+    }
+
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/provider")) {
+    const hasProviderSession = request.cookies.has(PROVIDER_SESSION_COOKIE);
+    const isLoginPage = pathname === "/provider/login";
+
+    if (!hasProviderSession && !isLoginPage) {
+      const loginUrl = new URL("/provider/login", request.url);
+      loginUrl.searchParams.set("next", pathname + request.nextUrl.search);
+
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (hasProviderSession && isLoginPage) {
+      return NextResponse.redirect(new URL("/provider", request.url));
     }
 
     return NextResponse.next();
@@ -64,5 +85,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/orders/:path*", "/vehicles/:path*", "/login"],
+  matcher: ["/admin/:path*", "/provider/:path*", "/orders/:path*", "/vehicles/:path*", "/login"],
 };
