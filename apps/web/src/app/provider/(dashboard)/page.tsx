@@ -6,6 +6,7 @@ import { apiGet, apiPatch } from "@/lib/api/client";
 import { ApiRequestError } from "@/lib/api/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InstallPrompt } from "@/components/install-prompt";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
@@ -73,6 +74,8 @@ export default function ProviderDashboardPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <InstallPrompt appLabel="مزودي الخدمة" />
+
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">{provider.business_name}</h1>
         <Badge tone={providerStatusTone(provider.status)}>

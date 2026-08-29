@@ -27,8 +27,26 @@ import { PROVIDER_SESSION_COOKIE } from "@/lib/provider-session-constants";
 // (docs/PRODUCT_REQUIREMENTS.md §Core customer journey).
 const CUSTOMER_PROTECTED_PREFIXES = ["/orders", "/vehicles"];
 
+// A browser fetches these — the manifest, the tab/home-screen icons —
+// before a visitor is ever authenticated, straight from the <link> tags
+// Next.js injects into /provider/login's own <head> (see
+// src/app/provider/manifest.webmanifest/route.ts, src/app/provider/
+// icon.tsx, src/app/provider/apple-icon.tsx). Real bug caught during
+// Phase 21 verification: the /provider/:path* gate below was blocking
+// all three, silently breaking installability for any signed-out visitor
+// (see docs/PWA.md §Real bug found).
+const PROVIDER_PUBLIC_METADATA_PATHS = [
+  "/provider/manifest.webmanifest",
+  "/provider/icon",
+  "/provider/apple-icon",
+];
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (PROVIDER_PUBLIC_METADATA_PATHS.includes(pathname)) {
+    return NextResponse.next();
+  }
 
   if (pathname.startsWith("/admin")) {
     const hasSession = request.cookies.has(SESSION_COOKIE);

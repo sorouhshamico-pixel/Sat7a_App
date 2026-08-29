@@ -29,8 +29,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 17 | Operations Command Center | Done |
 | 18 | Finance & Compliance Admin | Done |
 | 19 | Customer Web App Polish | Done |
-| 20 | Provider Web / PWA | **Done** |
-| 21 | PWA | Not started |
+| 20 | Provider Web / PWA | Done |
+| 21 | PWA | **Done** |
 | 22 | Marketing & SEO | Not started |
 | 23 | Security Hardening | Not started |
 | 24 | Performance & Load Hardening | Not started |
@@ -688,6 +688,45 @@ Not yet in this phase: self-serve provider registration web form (only staff log
 already-provisioned provider); document preview/download; settlement-batch generation from the
 provider side (admin-only action); list pagination; a driver self-service online/offline toggle
 distinct from location sharing; real-time WebSocket updates on the dispatch-offer inbox.
+
+## Phase 21 — PWA (this phase)
+
+Implemented: installability and an offline shell for the customer and provider web apps — see
+`docs/PWA.md` for the full write-up. Each app gets its own web app manifest (distinct name, icon,
+`start_url`/`scope`, and theme color — blue for customer, emerald for provider), generated app
+icons (`next/og`'s `ImageResponse`, not static image files, so there's no external
+image-generation dependency and the icon can never drift out of sync with the brand color), one
+shared hand-written service worker (`public/sw.js`) providing an offline fallback page for the
+app shell, and an install-prompt component (native `beforeinstallprompt` capture on
+Chrome/Android, text instructions on iOS Safari, hidden once already installed). The admin
+console stays un-installable — it's desktop-oriented.
+
+The service worker's one hard rule: it never caches `/api/*` or any non-GET request — every
+screen in both apps reads session-scoped, frequently-changing data through the shared backend
+proxy, and serving a cached copy of any of it would be actively wrong, not just stale.
+
+**One real bug found and fixed, caught during this phase's own verification**: Phase 20's
+`/provider/:path*` auth gate in `src/proxy.ts` was blocking the provider app's manifest and both
+icon routes, redirecting all three to the login page. A browser fetches all three *before* a
+visitor is ever authenticated, so this silently broke installability (and even the browser-tab
+favicon) for every signed-out visitor, while staying invisible during normal authenticated
+testing. Fixed by exempting an explicit allowlist of the three public metadata paths before the
+`/provider/*` gate runs. Regression-tested in `e2e/pwa.spec.ts`.
+
+Verified end to end via Playwright rather than just typechecked — `localhost` is a secure context
+for service workers even over plain HTTP, so this dev box never needed an HTTPS dev server:
+real service worker registration reaching `active` state, both manifests serving distinct
+correct content, the provider metadata routes being reachable unauthenticated while a real
+protected route still redirects, and — the strongest check — setting the browser fully offline
+and confirming a failed navigation genuinely renders the offline fallback page.
+
+Not yet in this phase: Web Push notification *delivery* (needs VAPID keys, a subscription table,
+and backend `web-push` wiring — Phase 16 already scaffolded the `PushProvider` contract with a
+fake adapter, matching this project's "no real vendor yet" pattern; wiring a real channel on top
+is a distinct future addition); precaching specific hashed build-asset filenames (opportunistic
+stale-while-revalidate caching only); background sync; a real-device HTTPS install-prompt test
+(verified via mechanics instead, per above — production is already HTTPS per
+`docs/DEPLOYMENT.md`).
 
 ## Definition of Done for every phase
 

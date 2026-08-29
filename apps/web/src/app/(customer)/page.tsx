@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api/client";
 import { ApiRequestError } from "@/lib/api/types";
 import { AddressSearch, type SelectedAddress } from "@/components/address-search";
+import { InstallPrompt } from "@/components/install-prompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
@@ -71,6 +72,8 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center gap-4 py-8">
+      <InstallPrompt appLabel="سطحات الرياض" />
+
       <div className="text-center">
         <h1 className="text-2xl font-bold text-gray-900">اطلب سطحة في الرياض خلال دقائق</h1>
         <p className="mt-1 text-sm text-gray-600">احصل على سعر فوري، ثم احجز طلبك.</p>
