@@ -30,8 +30,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 18 | Finance & Compliance Admin | Done |
 | 19 | Customer Web App Polish | Done |
 | 20 | Provider Web / PWA | Done |
-| 21 | PWA | **Done** |
-| 22 | Marketing & SEO | Not started |
+| 21 | PWA | Done |
+| 22 | Marketing & SEO | **Done** |
 | 23 | Security Hardening | Not started |
 | 24 | Performance & Load Hardening | Not started |
 | 25 | Production Readiness | Not started |
@@ -727,6 +727,44 @@ is a distinct future addition); precaching specific hashed build-asset filenames
 stale-while-revalidate caching only); background sync; a real-device HTTPS install-prompt test
 (verified via mechanics instead, per above — production is already HTTPS per
 `docs/DEPLOYMENT.md`).
+
+## Phase 22 — Marketing & SEO (this phase)
+
+Implemented: discoverability and shareability for the one genuinely public, marketing-relevant
+page this platform has — the customer homepage — see `docs/MARKETING_SEO.md` for the full
+write-up. This platform has no separate content site or blog, so this phase is metadata
+infrastructure, not new pages: `src/app/robots.ts` disallows the transactional/staff-only trees
+(`/orders`, `/vehicles`, `/admin`, `/provider`) while still allowing both login pages to be
+crawled (not a security boundary — `src/proxy.ts` already is one — just keeping private screens
+out of search results and crawl budget); `src/app/sitemap.ts` deliberately lists exactly one URL,
+since padding a sitemap with low-value transactional URLs is a real anti-pattern, not a missed
+opportunity; the root layout gained a proper title template, Open Graph, and Twitter Card
+metadata; a generated `opengraph-image.tsx` (via `next/og`'s `ImageResponse`, same
+no-external-dependency reasoning as the Phase 21 PWA icons) gives link shares a real social
+card; and the homepage embeds a schema.org `Service` JSON-LD block (not `LocalBusiness` — this
+platform has no single physical address to publish) stating only what's actually true, no
+fabricated address/phone/rating.
+
+The provider app got the same treatment as its own distinct identity, extending Phase 21's
+manifest/icon split to titles and social cards.
+
+**Two more real bugs found and fixed while verifying this phase, both the exact same root cause
+as Phase 21's**: `src/proxy.ts`'s `/provider/:path*` gate was also blocking
+`/provider/opengraph-image` (fixed by adding it to the same public-metadata-path allowlist,
+now with a comment flagging that any future provider metadata file needs the same entry); and
+after adding provider-specific Open Graph text, the `<title>` tag came out double-branded
+("... — سطحات الرياض | منصة سطحات الرياض") because Next's metadata resolution still wraps a
+child segment's `title.default` in every ancestor's template — only `title.absolute` bypasses
+them. Both caught by reading the actual rendered `<head>` output via curl, not by reasoning about
+the metadata API from memory.
+
+Not yet in this phase: English-locale content/`hreflang` (nothing built in either app to
+translate yet, per `docs/PRODUCT_REQUIREMENTS.md`'s "planned secondary locale" framing); Arabic
+text in the generated OG images (`ImageResponse` needs an explicit font supplied for Arabic
+glyphs — see `docs/MARKETING_SEO.md` for the trade-off written out in full); per-page `<title>`
+overrides beyond the homepage/provider split (every other screen is behind a login or
+transactional and already excluded via `robots.ts`); search-console verification tags (nothing
+to verify against until a real domain exists); any blog/FAQ/content pages.
 
 ## Definition of Done for every phase
 

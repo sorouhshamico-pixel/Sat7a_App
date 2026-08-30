@@ -27,18 +27,21 @@ import { PROVIDER_SESSION_COOKIE } from "@/lib/provider-session-constants";
 // (docs/PRODUCT_REQUIREMENTS.md §Core customer journey).
 const CUSTOMER_PROTECTED_PREFIXES = ["/orders", "/vehicles"];
 
-// A browser fetches these — the manifest, the tab/home-screen icons —
-// before a visitor is ever authenticated, straight from the <link> tags
-// Next.js injects into /provider/login's own <head> (see
+// A browser (or a social-share unfurl bot, or a search crawler) fetches
+// these before a visitor is ever authenticated, straight from the <link>/
+// <meta> tags Next.js injects into /provider/login's own <head> (see
 // src/app/provider/manifest.webmanifest/route.ts, src/app/provider/
-// icon.tsx, src/app/provider/apple-icon.tsx). Real bug caught during
-// Phase 21 verification: the /provider/:path* gate below was blocking
-// all three, silently breaking installability for any signed-out visitor
-// (see docs/PWA.md §Real bug found).
+// {icon,apple-icon,opengraph-image}.tsx). Real bug caught twice now,
+// same root cause each time — Phase 21 caught it for manifest/icon/
+// apple-icon (see docs/PWA.md §Real bug found); opengraph-image was
+// added in Phase 22 and hit the identical gap (see docs/MARKETING_SEO.md)
+// until it was added here too. Any future metadata file placed directly
+// under src/app/provider/ needs the same allowlist entry.
 const PROVIDER_PUBLIC_METADATA_PATHS = [
   "/provider/manifest.webmanifest",
   "/provider/icon",
   "/provider/apple-icon",
+  "/provider/opengraph-image",
 ];
 
 export function proxy(request: NextRequest) {

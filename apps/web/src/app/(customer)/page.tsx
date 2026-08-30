@@ -6,12 +6,29 @@ import { apiPost } from "@/lib/api/client";
 import { ApiRequestError } from "@/lib/api/types";
 import { AddressSearch, type SelectedAddress } from "@/components/address-search";
 import { InstallPrompt } from "@/components/install-prompt";
+import { JsonLd } from "@/components/json-ld";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { SERVICE_TYPE_LABELS, VEHICLE_CATEGORY_LABELS } from "@/lib/service-types";
+import { SITE_URL } from "@/lib/site";
 import type { PricingSnapshot } from "@/lib/types/pricing";
+
+// Service, not LocalBusiness — this platform has no single physical
+// storefront address to publish, and schema.org has no dedicated towing
+// type. See docs/MARKETING_SEO.md.
+const SERVICE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Service",
+  name: "منصة سطحات الرياض",
+  description:
+    "خدمة طلب سطحة ونقل وانتشال مركبات في الرياض عبر الإنترنت، بأسعار واضحة وتتبع مباشر.",
+  serviceType: "خدمة سطحة ونقل وانتشال مركبات",
+  areaServed: { "@type": "City", name: "الرياض" },
+  provider: { "@type": "Organization", name: "منصة سطحات الرياض", url: SITE_URL },
+  url: SITE_URL,
+};
 
 export default function HomePage() {
   const router = useRouter();
@@ -72,6 +89,7 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center gap-4 py-8">
+      <JsonLd data={SERVICE_JSON_LD} />
       <InstallPrompt appLabel="سطحات الرياض" />
 
       <div className="text-center">
