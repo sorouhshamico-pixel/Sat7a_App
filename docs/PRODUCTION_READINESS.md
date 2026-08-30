@@ -119,3 +119,39 @@ afterward, still following the same "audit what's already there, fix what's foun
    Playwright's `webServer` to start a genuinely fresh `next dev` instance rather than reusing one
    already running, matching what a clean CI runner does) — all 22 tests passed, and the spawned
    server was confirmed torn down afterward.
+
+## Post-roadmap: the CI-hardening commit itself was never actually checked against real CI
+
+Every phase in this project, including this one, ended with "full local gate green" as the
+completion criterion — Pint/Larastan/PHPUnit and ESLint/tsc/Prettier/Vitest/build, run on this
+persistent dev machine. What had never once been checked, in 25 phases plus the CI-hardening work
+above, was whether pushed commits actually produced a *passing* GitHub Actions run. Running
+`gh run list` for the first time (prompted by nothing more than continuing the same
+audit-everything methodology past the point of "no more roadmap phases left") showed both
+`backend.yml` and `frontend.yml` had been failing on every push for at least the prior two phases,
+including the CI-hardening commit itself. Two distinct, real, previously-undetected bugs, both
+invisible locally because a persistent dev machine's state (an already-generated `.env`, an
+already-built `.next/types`) is not what a fresh checkout starts with:
+
+1. **Backend**: `composer install`'s post-autoload-dump hook (`artisan package:discover`) fully
+   boots the framework, which resolves the default broadcaster
+   (`config/broadcasting.php` → `'default' => env('BROADCAST_CONNECTION', 'reverb')`, true even
+   with zero `.env` present) and crashes constructing a Pusher client with a null auth key —
+   `RuntimeException: Failed to create broadcaster for connection "reverb"`. The workflow copied
+   `.env.example` to `.env` *after* `composer install`, so on every fresh CI checkout this step
+   never had a chance to succeed. Fixed by reordering `backend.yml` so `.env` is copied and given
+   placeholder, CI-only Reverb identifiers (self-hosted-server IDs, not a third-party credential —
+   see `docs/DEPLOYMENT.md` §Realtime (Reverb)) before `composer install` runs. Reproduced the
+   exact crash locally first (`rm .env; php artisan package:discover --ansi`), confirmed the fix
+   resolves it, then restored the real dev `.env` before re-running the full local gate.
+2. **Frontend**: `tsc --noEmit` ran before anything had ever generated `.next/types`, so the
+   Next-magic `LayoutProps` type used in `src/app/layout.tsx` could never resolve on a fresh
+   checkout. Fixed by changing `package.json`'s `typecheck` script to `next typegen && tsc
+   --noEmit`. Verified locally from a clean-deleted `.next` state.
+
+Both fixes verified against the real GitHub Actions run after pushing (`gh run watch`), not just
+locally — `backend.yml`'s `test` job and `frontend.yml`'s `test`/`e2e` jobs all passed for the
+first time in this project's history. The standing lesson, consistent with every other finding
+this project has made since Phase 17: a green local gate was never proof of a green CI run, and
+from this point on "done" for any future change means checking `gh run list`/`gh run watch`
+against the real push, not just the local terminal.
