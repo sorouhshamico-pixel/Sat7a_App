@@ -93,8 +93,8 @@ that exact script needed a substitute path on this specific machine.
   close from this machine; everything else on that checklist is genuinely done.
 - Horizon dashboard screenshots/walkthrough, since Horizon itself can't run on this Windows dev
   box at all (`docs/DEPLOYMENT.md` §Horizon on Windows, pre-existing, not new to this phase).
-- A dedicated Reverb connection-health check on `/api/v1/health` — the endpoint still only
-  checks database and Redis.
+- ~~A dedicated Reverb connection-health check on `/api/v1/health`~~ — closed post-roadmap, see
+  the new section below and `docs/MONITORING.md` §Health checks.
 
 ## Post-roadmap: CI hardening
 
@@ -183,3 +183,30 @@ indefinitely, since `eslint-config-next` needs to bump its own `eslint-plugin-re
 first. Re-syncing local `vendor/`/`node_modules` to match the bumped lockfiles and re-running the
 full local gate (Pint, Larastan, PHPUnit — 264 tests; ESLint, `next typegen && tsc --noEmit`,
 `next build`, Vitest — 37 tests) also passed clean, confirming no local/CI drift.
+
+## Post-roadmap: the Reverb health check this document itself had flagged as missing
+
+Closed the one remaining item Phase 25's own checklist above left open under "Not yet in this
+phase": `/api/v1/health` only checked database and Redis, despite Reverb being a real, required
+dependency of the live-tracking/notifications realtime path. Added a `reverb` check that hits
+Reverb's own Pusher-protocol-compatible `GET /up` endpoint (`Laravel\Reverb\Servers\Reverb\
+Factory` — a plain HTTP route on Reverb's own port, unrelated to the WebSocket upgrade itself)
+with a 2-second timeout, reusing the same host/port/scheme `config/reverb.php` already resolves
+from `REVERB_HOST`/`REVERB_PORT`/`REVERB_SCHEME` — no new config surface.
+
+Verified against a genuinely running `php artisan reverb:start`, not just `Http::fake()` in
+tests: started Reverb, confirmed `reverb: true` and `status: ok` on a real `GET /api/v1/health`
+request; killed it, confirmed `reverb: false` and a real `503` within seconds — the same "verify
+live, don't trust the code reads as correct" standard as every other finding since Phase 17.
+
+This surfaced one incidental regression, caught by the full local gate rather than shipped
+unnoticed: `tests/Feature/Security/CorsTest.php`'s `test_a_real_request_carries_the_configured_
+allow_origin_header` had been using `/api/v1/health` purely as a stand-in "any real GET endpoint"
+to check a CORS header, silently relying on it always returning `200`. Once Reverb (unreachable
+in the test environment, no fake configured) became part of that endpoint's own logic, the test
+started failing with a real `503` — correctly, since the endpoint's behavior did change, but for
+a reason that test never meant to depend on. Fixed by faking Reverb reachable in that one test
+(`Http::fake(['*/up' => Http::response(['health' => 'OK'], 200)])`), decoupling it from the health
+endpoint's own business logic again. The other two tests touching `/api/v1/health`
+(`TrustedProxiesTest`'s HSTS-header assertions) were unaffected — they only assert header
+presence, not status code or body, so they never depended on the endpoint's own outcome.

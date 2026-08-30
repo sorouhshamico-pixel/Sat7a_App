@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Security;
 
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -35,6 +36,12 @@ class CorsTest extends TestCase
 
     public function test_a_real_request_carries_the_configured_allow_origin_header(): void
     {
+        // /api/v1/health is used here purely as a stand-in real, non-preflight
+        // GET endpoint — its own dependency checks (including the Reverb
+        // ping added in Phase 25) are irrelevant to what this test verifies,
+        // so fake Reverb reachable to keep this test decoupled from that.
+        Http::fake(['*/up' => Http::response(['health' => 'OK'], 200)]);
+
         $response = $this->call('GET', '/api/v1/health', server: [
             'HTTP_ORIGIN' => 'http://localhost:3000',
         ]);

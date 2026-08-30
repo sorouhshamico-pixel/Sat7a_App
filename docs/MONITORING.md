@@ -11,10 +11,19 @@ only (see Planned below).
 ## Health checks (implemented)
 
 `GET /api/v1/health` (`apps/backend/app/Http/Controllers/Api/V1/HealthController.php`) checks
-database and Redis connectivity and returns `200` (`status: ok`) or `503` (`status: degraded`)
-with a per-dependency boolean breakdown. It intentionally does not leak connection strings,
-stack traces, or credentials — safe to expose to infrastructure health probes, not a general
-public status page.
+database, Redis, and Reverb connectivity and returns `200` (`status: ok`) or `503` (`status:
+degraded`) with a per-dependency boolean breakdown. It intentionally does not leak connection
+strings, stack traces, or credentials — safe to expose to infrastructure health probes, not a
+general public status page.
+
+The Reverb check (added post-roadmap, closing a gap Phase 25 had explicitly left open — see
+"Not yet" below) hits Reverb's own Pusher-protocol-compatible `GET /up` endpoint
+(`Laravel\Reverb\Servers\Reverb\Factory` — a plain HTTP route on Reverb's own port, unrelated to
+the WebSocket upgrade path) with a 2-second timeout, using the same host/port/scheme Reverb's own
+`config/reverb.php` app config already resolves from `REVERB_HOST`/`REVERB_PORT`/`REVERB_SCHEME`.
+Verified against a genuinely running `php artisan reverb:start` (not just `Http::fake()` in
+tests): `reverb: true` while the server was up, `reverb: false` and the endpoint returning `503`
+within seconds of killing it.
 
 Laravel's built-in `/up` endpoint (configured in `bootstrap/app.php`) remains available as the
 framework-level liveness probe.
@@ -80,8 +89,8 @@ this Windows-specific restriction.
   (`pcntl`/`posix`, see `docs/DEPLOYMENT.md`); `infrastructure/systemd-horizon.service` supervises
   it once one exists, but the dashboard itself wasn't stood up or screenshotted from this Windows
   dev box.
-- WebSocket (Reverb) connection health — no dedicated health-check endpoint for Reverb
-  specifically; `/api/v1/health` doesn't check it.
+- ~~WebSocket (Reverb) connection health~~ — closed post-roadmap: `/api/v1/health` now checks
+  Reverb's own `/up` endpoint (see Health checks above).
 - Slow-query and N+1 query monitoring in production (automated, ongoing) — Phase 24 did a
   one-time manual audit (`docs/PERFORMANCE.md`); this item is about continuous, automated
   detection (e.g. a query-count budget assertion in CI, or an APM tool), not repeated here.
