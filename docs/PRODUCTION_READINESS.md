@@ -155,3 +155,16 @@ first time in this project's history. The standing lesson, consistent with every
 this project has made since Phase 17: a green local gate was never proof of a green CI run, and
 from this point on "done" for any future change means checking `gh run list`/`gh run watch`
 against the real push, not just the local terminal.
+
+## Post-roadmap: Dependabot
+
+`composer audit`/`npm audit` (added earlier in this same post-roadmap pass) only catch known CVEs
+in whatever version is already pinned — they say nothing about a dependency simply going stale.
+Added `.github/dependabot.yml` (composer for `apps/backend`, npm for `apps/web`, github-actions
+for the workflow files themselves, weekly, capped at 5 open PRs each) so version bumps get
+proposed automatically rather than relying on someone remembering to run `composer outdated`/`npm
+outdated`. This is meaningfully more useful now than it would have been earlier in the post-roadmap
+work above: every PR Dependabot opens touches `apps/backend/**` or `apps/web/**`, which is exactly
+what triggers `backend.yml`/`frontend.yml` — so these bumps now land against a CI pipeline that
+actually runs and actually passes, gating them for real instead of on the strength of a version
+number alone.
