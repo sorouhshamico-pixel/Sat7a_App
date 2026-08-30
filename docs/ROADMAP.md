@@ -32,8 +32,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 20 | Provider Web / PWA | Done |
 | 21 | PWA | Done |
 | 22 | Marketing & SEO | Done |
-| 23 | Security Hardening | **Done** |
-| 24 | Performance & Load Hardening | Not started |
+| 23 | Security Hardening | Done |
+| 24 | Performance & Load Hardening | **Done** |
 | 25 | Production Readiness | Not started |
 
 ## Phase 0 — Architecture & Foundation (this phase)
@@ -812,6 +812,58 @@ are purged so far); automated dependency-vulnerability scanning in CI; formal
 penetration-testing/OWASP ASVS walkthrough (this was a targeted audit against this project's own
 previously-flagged gaps, not an exhaustive external assessment); rate-limit tuning beyond what
 was already documented.
+
+## Phase 24 — Performance & Load Hardening (this phase)
+
+`docs/MONITORING.md` defers full slow-query/N+1 tooling to Phase 25 — this phase applied the same
+"review what's already there and fix what's found" audit methodology Phase 23 used for security,
+to query and pagination discipline instead. See `docs/PERFORMANCE.md` for the full write-up. Real
+load testing against production-scale data wasn't attempted: this dev database has single-digit
+row counts per table, so a synthetic load test would measure noise, not real bottlenecks.
+
+Every API Resource was checked for direct (non-`whenLoaded()`) relation access — none found,
+confirming the codebase is N+1-safe by construction (Resources never lazy-load on their own,
+controllers eager-load what their Resource needs). But comparing every controller's `index()`
+against its own `show()` for the same Resource found **two real "missing eager-load" bugs** —
+not classic N+1s, a subtler bug where a list endpoint eager-loads *less* than its own detail
+endpoint, so a field the API's contract promises silently goes missing only on the list: (1)
+`GET customers/me/orders` never eager-loaded `vehicle`, so it silently disappeared from every
+order on a customer's own order history while the detail endpoint always had it — no
+customer-facing screen happened to render the field yet, but this platform is explicitly
+API-first for a future Flutter client that would have hit it immediately; (2) neither
+`providers/me/settlements` endpoint eager-loaded `approvedBy`, so a provider could never actually
+see who approved their own settlement even after a real finance officer had genuinely approved
+it. Both fixed with the missing `->with()`, both regression-tested against a real approval
+lifecycle / a real order-history call, not just asserted against the diff.
+
+**Pagination: the backend was already ready, the frontend wasn't.** Five admin/provider list
+screens — flagged as an explicit "Not yet in this phase" gap in three earlier phases' own docs —
+called endpoints that had supported `page`/`per_page` server-side all along, but the UI never
+sent a `page` param or offered a way to reach page 2, silently truncating every list to its
+newest 20 rows forever. Closed with one shared `Pagination` component wired into seven list
+screens. Verified live: 25 synthetic rows were bulk-inserted directly (bypassing domain logic,
+purely to produce enough rows for the pagination mechanism, not a realistic scenario) and a real
+admin session clicked through to page 2 and back via Playwright, confirming genuinely different,
+non-overlapping data and a correct return to page 1 — then the synthetic rows and the
+verification token were deleted, leaving no trace in the dev database.
+
+**A hardening pass on one axis introduced a real gap on another, caught in the very next phase**:
+Phase 23's new `data:purge-expired` retention job filters two tables by a timestamp column with
+no other predicate, but neither table had an index usable for that — both would have been full
+table scans on a command running daily forever. Fixed with a migration adding the three missing
+indexes. A reminder that a security/hygiene fix's own query cost needs the same scrutiny as any
+other new query.
+
+A spot-check of indexes behind the highest-traffic query patterns (dispatch offers, notifications,
+ledger entries) found nothing to fix — every one already had a composite index matching its real
+query shape, confirming rather than assuming this project's migrations have been disciplined
+about indexing since early phases.
+
+Not yet in this phase: real load/stress testing (needs production-scale data, belongs with a
+staging environment or Phase 25); automated N+1/slow-query detection in CI (Phase 25 scope per
+`docs/MONITORING.md`); frontend bundle-size/code-splitting audit; a full React Query cache-tuning
+pass beyond what's already documented per-screen; cursor-based pagination (offset pagination is a
+reasonable default at today's expected scale).
 
 ## Definition of Done for every phase
 

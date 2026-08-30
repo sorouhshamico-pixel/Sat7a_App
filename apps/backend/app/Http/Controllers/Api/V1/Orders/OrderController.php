@@ -29,7 +29,14 @@ class OrderController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        // Real Phase 24 finding: this list endpoint omitted `vehicle`
+        // entirely from every order (OrderResource's whenLoaded('vehicle',
+        // ...) silently returns nothing when it isn't eager-loaded) while
+        // show() below always has — an inconsistency, not by design. No
+        // customer-facing screen happened to render the field yet (see
+        // docs/PERFORMANCE.md), but the API's own contract promises it.
         $orders = $this->resolveCustomer($request)->orders()
+            ->with('vehicle')
             ->latest()
             ->paginate($request->integer('per_page', 20));
 

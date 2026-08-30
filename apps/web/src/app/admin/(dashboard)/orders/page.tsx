@@ -7,12 +7,15 @@ import { apiGet } from "@/lib/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert } from "@/components/ui/alert";
+import { Pagination } from "@/components/pagination";
 import { orderStatusLabel, orderStatusTone, ORDER_STATUS_LABELS } from "@/lib/orders";
 import type { OrderListItem } from "@/lib/types/order";
 
 interface OrdersResponse {
   orders: OrderListItem[];
 }
+
+const PAGE_SIZE = 20;
 
 export default function OrdersListPage() {
   const [status, setStatus] = useState("");
@@ -24,7 +27,7 @@ export default function OrdersListPage() {
       apiGet<OrdersResponse>("admin/orders", {
         ...(status ? { status } : {}),
         page: String(page),
-        per_page: "20",
+        per_page: String(PAGE_SIZE),
       }),
   });
 
@@ -103,27 +106,13 @@ export default function OrdersListPage() {
       )}
 
       {data && (
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <span>
-            الإجمالي: {String(data.meta.total ?? 0)} — صفحة {String(data.meta.current_page ?? page)}
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40"
-            >
-              السابق
-            </button>
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={data.data.orders.length < 20}
-              className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40"
-            >
-              التالي
-            </button>
-          </div>
-        </div>
+        <Pagination
+          page={page}
+          onPageChange={setPage}
+          total={Number(data.meta.total ?? 0)}
+          itemCount={data.data.orders.length}
+          pageSize={PAGE_SIZE}
+        />
       )}
     </div>
   );

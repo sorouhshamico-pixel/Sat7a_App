@@ -7,16 +7,24 @@ import { apiGet } from "@/lib/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert } from "@/components/ui/alert";
+import { Pagination } from "@/components/pagination";
 import { PROVIDER_STATUS_LABELS, providerStatusTone } from "@/lib/providers";
 import type { ProviderListItem } from "@/lib/types/provider";
 
+const PAGE_SIZE = 20;
+
 export default function ProvidersListPage() {
   const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["admin-providers", status],
+    queryKey: ["admin-providers", status, page],
     queryFn: () =>
-      apiGet<{ providers: ProviderListItem[] }>("admin/providers", status ? { status } : undefined),
+      apiGet<{ providers: ProviderListItem[] }>("admin/providers", {
+        ...(status ? { status } : {}),
+        page: String(page),
+        per_page: String(PAGE_SIZE),
+      }),
   });
 
   return (
@@ -26,7 +34,10 @@ export default function ProvidersListPage() {
 
         <select
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            setPage(1);
+          }}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm"
         >
           <option value="">كل الحالات</option>
@@ -88,6 +99,16 @@ export default function ProvidersListPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {data && (
+        <Pagination
+          page={page}
+          onPageChange={setPage}
+          total={Number(data.meta.total ?? 0)}
+          itemCount={data.data.providers.length}
+          pageSize={PAGE_SIZE}
+        />
       )}
     </div>
   );

@@ -16,7 +16,13 @@ class SettlementController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        // Real Phase 24 finding (docs/PERFORMANCE.md): neither endpoint in
+        // this controller eager-loaded `approvedBy`, so
+        // SettlementBatchResource's `approved_by` field (whenLoaded)
+        // silently came back missing on every response — the provider
+        // could never actually see who approved their own settlement.
         $batches = $this->resolveProvider($request)->settlementBatches()
+            ->with('approvedBy')
             ->latest('created_at')
             ->paginate($request->integer('per_page', 20));
 
@@ -34,6 +40,7 @@ class SettlementController extends Controller
     {
         $batch = $this->resolveProvider($request)->settlementBatches()
             ->where('public_id', $settlementPublicId)
+            ->with('approvedBy')
             ->first();
 
         if ($batch === null) {

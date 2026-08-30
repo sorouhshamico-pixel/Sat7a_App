@@ -1,16 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/lib/api/client";
 import { Card } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
+import { Pagination } from "@/components/pagination";
 import type { ReviewItem } from "@/lib/types/review";
 
+const PAGE_SIZE = 20;
+
 export default function ProviderReviewsPage() {
+  const [page, setPage] = useState(1);
+
   const reviewsQuery = useQuery({
-    queryKey: ["provider-reviews"],
-    queryFn: () => apiGet<{ reviews: ReviewItem[] }>("providers/me/reviews"),
+    queryKey: ["provider-reviews", page],
+    queryFn: () =>
+      apiGet<{ reviews: ReviewItem[] }>("providers/me/reviews", {
+        page: String(page),
+        per_page: String(PAGE_SIZE),
+      }),
   });
 
   if (reviewsQuery.isLoading) return <Spinner />;
@@ -41,6 +51,14 @@ export default function ProviderReviewsPage() {
           ))}
         </div>
       </Card>
+
+      <Pagination
+        page={page}
+        onPageChange={setPage}
+        total={Number(reviewsQuery.data?.meta.total ?? 0)}
+        itemCount={reviews.length}
+        pageSize={PAGE_SIZE}
+      />
     </div>
   );
 }

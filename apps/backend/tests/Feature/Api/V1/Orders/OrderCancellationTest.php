@@ -189,6 +189,14 @@ class OrderCancellationTest extends TestCase
         $response = $this->withToken($token)->getJson('/api/v1/customers/me/orders');
 
         $response->assertOk();
-        $this->assertCount(2, $response->json('data.orders'));
+        $orders = $response->json('data.orders');
+        $this->assertCount(2, $orders);
+
+        // Real Phase 24 finding (docs/PERFORMANCE.md): this list endpoint
+        // didn't eager-load `vehicle`, so OrderResource's `vehicle` field
+        // silently came back missing from every order on this screen even
+        // though customers/me/orders/{id} (show) always had it.
+        $this->assertSame('Toyota', $orders[0]['vehicle']['make']);
+        $this->assertSame('Camry', $orders[0]['vehicle']['model']);
     }
 }

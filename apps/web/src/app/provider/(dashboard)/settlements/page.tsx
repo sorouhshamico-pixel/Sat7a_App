@@ -1,25 +1,35 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/lib/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert } from "@/components/ui/alert";
+import { Pagination } from "@/components/pagination";
 import { SETTLEMENT_STATUS_LABELS, settlementStatusTone } from "@/lib/settlements";
 import type { SettlementBatchItem } from "@/lib/types/settlement";
 import type { ProviderBalance } from "@/lib/types/provider";
 
+const PAGE_SIZE = 20;
+
 export default function ProviderSettlementsPage() {
+  const [page, setPage] = useState(1);
+
   const balanceQuery = useQuery({
     queryKey: ["provider-balance"],
     queryFn: () => apiGet<{ balance: ProviderBalance }>("providers/me/balance"),
   });
 
   const settlementsQuery = useQuery({
-    queryKey: ["provider-settlements"],
-    queryFn: () => apiGet<{ settlements: SettlementBatchItem[] }>("providers/me/settlements"),
+    queryKey: ["provider-settlements", page],
+    queryFn: () =>
+      apiGet<{ settlements: SettlementBatchItem[] }>("providers/me/settlements", {
+        page: String(page),
+        per_page: String(PAGE_SIZE),
+      }),
   });
 
   const balance = balanceQuery.data?.data.balance;
@@ -109,6 +119,16 @@ export default function ProviderSettlementsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {settlementsQuery.data && (
+        <Pagination
+          page={page}
+          onPageChange={setPage}
+          total={Number(settlementsQuery.data.meta.total ?? 0)}
+          itemCount={settlements.length}
+          pageSize={PAGE_SIZE}
+        />
       )}
     </div>
   );

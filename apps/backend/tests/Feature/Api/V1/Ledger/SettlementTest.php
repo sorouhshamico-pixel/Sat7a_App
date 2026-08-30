@@ -366,6 +366,42 @@ class SettlementTest extends TestCase
         );
     }
 
+    /**
+     * Real Phase 24 finding (docs/PERFORMANCE.md): neither
+     * App\Http\Controllers\Api\V1\Providers\SettlementController::index()
+     * nor ::show() eager-loaded `approvedBy`, so SettlementBatchResource's
+     * `approved_by` field silently came back null on every response a
+     * provider ever saw of their own settlement — even after an admin had
+     * genuinely approved it.
+     */
+    public function test_a_provider_sees_who_approved_their_settlement_batch(): void
+    {
+        [$providerId] = $this->setUpProviderWithSettleableEarnings('0156');
+
+        $financeOfficer = $this->staffWithRole(RoleName::FinanceOfficer);
+        $financeToken = $this->tokenFor($financeOfficer);
+
+        $batch = $this->actingAsToken('POST', $financeToken, "/api/v1/admin/providers/{$providerId}/settlements", [
+            'period_start' => now()->subDays(7)->toDateString(),
+            'period_end' => now()->toDateString(),
+        ])->json('data.settlement');
+
+        foreach (['pending_approval', 'approved'] as $status) {
+            $this->actingAsToken('POST', $financeToken, "/api/v1/admin/settlements/{$batch['id']}/status", ['status' => $status])
+                ->assertOk();
+        }
+
+        $shown = $this->actingAsToken('GET', $this->ownerToken, "/api/v1/providers/me/settlements/{$batch['id']}")
+            ->assertOk()
+            ->json('data.settlement');
+        $this->assertSame($financeOfficer->public_id, $shown['approved_by']);
+
+        $indexed = $this->actingAsToken('GET', $this->ownerToken, '/api/v1/providers/me/settlements')
+            ->assertOk()
+            ->json('data.settlements');
+        $this->assertSame($financeOfficer->public_id, $indexed[0]['approved_by']);
+    }
+
     public function test_a_dispatcher_cannot_generate_or_advance_settlements(): void
     {
         [$providerId] = $this->setUpProviderWithSettleableEarnings('0155');
