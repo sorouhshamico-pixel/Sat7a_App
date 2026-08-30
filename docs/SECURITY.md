@@ -3,10 +3,11 @@
 ## Status
 
 Phase 1: authentication, OTP, sessions, and admin MFA are implemented. Phase 2: RBAC and audit
-logging are implemented (see below in each case) — everything else in this document is still
-design/Phase 0 baseline. A dedicated Phase 23 security-hardening audit happens before production
-readiness. This document is updated as each control is implemented — it is not a promise of
-controls that don't exist yet.
+logging are implemented. Phase 23: CORS, log redaction, frontend security headers/CSP, and
+baseline data-retention purging are implemented (see below in each case) — this document is
+updated as each control is implemented, never a promise of controls that don't exist yet. See
+`docs/SECURITY_HARDENING.md` for the full Phase 23 write-up, including the real bugs found while
+verifying each of these live rather than just typechecking them.
 
 ## Threat model reference (OWASP)
 
@@ -136,17 +137,39 @@ super-admin action is exempt from this.
 | Payment creation | 10 / 10 min per user or IP — implemented, Phase 12 |
 | Payment webhook | 120 / min per IP — implemented, Phase 12 (public, unauthenticated) |
 
-## Security headers (implemented, Phase 0)
+## Security headers (implemented, Phase 0 backend / Phase 23 frontend)
 
 `App\Http\Middleware\SecurityHeaders` (`apps/backend/app/Http/Middleware/SecurityHeaders.php`)
 applies `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy`, and
 HSTS on secure requests to every `/api/*` response. No page-level CSP is set on the API (it
-returns JSON, not HTML) — the Next.js app owns its own CSP.
+returns JSON, not HTML).
 
-## CORS
+The Next.js app's own headers (`apps/web/next.config.ts`) were added in Phase 23 — see
+`docs/SECURITY_HARDENING.md` §CSP for the full write-up, including a real, empirically-verified
+constraint: a strict `script-src 'self'` with no `'unsafe-inline'`/nonce genuinely breaks Next.js
+App Router's own inline RSC-streaming hydration scripts (confirmed live via a Playwright
+console-error capture, not assumed), so `script-src` carries `'unsafe-inline'` (matching Next's
+own documented non-nonce CSP baseline) while every other directive — `object-src`,
+`frame-ancestors`, `connect-src`, `worker-src`, etc. — stays strict. `'unsafe-eval'` is added only
+in development (React's own debugging-overlay requirement, never shipped to production). HSTS is
+production-only.
 
-No `Access-Control-Allow-Origin: *` on private endpoints. Allowlist per environment, configured
-via Sanctum's stateful-domains + Laravel's CORS config as those are wired up in Phase 1.
+## CORS (implemented, Phase 23)
+
+`config/cors.php` (paths `api/*` only) allows exactly one origin — `FRONTEND_URL`, the Next.js
+app's own origin — via `Illuminate\Http\Middleware\HandleCors`, registered ahead of
+`SecurityHeaders` in `bootstrap/app.php`. `supports_credentials` is `false`: this API never
+receives cookie-based Sanctum SPA auth (see Authentication above) — every request the browser
+ever makes goes through the Next.js app's own same-origin BFF route handlers, which attach the
+Bearer token server-side, so a browser calling this API directly cross-origin isn't part of this
+architecture's real traffic pattern at all. This was a real, if low-severity, gap before Phase
+23 — no `config/cors.php` existed and `HandleCors` wasn't registered, so `/api/*` carried no
+explicit origin policy either way. Verified live (not just configured): an OPTIONS preflight
+against an auth-protected admin route returns a clean CORS response without ever reaching the
+auth middleware, and Laravel's CORS middleware always echoes the one *configured* origin
+regardless of the request's actual `Origin` header — safe, since a browser's same-origin check
+compares the response header against its own origin, not against what the server received; see
+`tests/Feature/Security/CorsTest.php`.
 
 ## Input validation & mass assignment
 
@@ -171,11 +194,22 @@ request, whether the caller owns the underlying record or holds `documents.view`
 previously-valid link never stays valid after a permission change, because there is no link —
 only an authenticated, re-checked request.
 
-## Logging
+## Logging (implemented, Phase 23)
 
 Never logged: passwords, OTPs, access/refresh tokens, `Authorization` headers, full bank
-details, card data, identity document contents. Structured logs redact these fields at the
-logging layer, not by convention alone.
+details, card data, identity document contents. `App\Logging\RedactSensitiveDataProcessor` — a
+Monolog processor tapped onto every persisting log channel in `config/logging.php` — scans every
+log record's context array (recursively, for nested payloads like a raw webhook body) for a
+broad set of sensitive key fragments and replaces the value with `[redacted]`, regardless of
+which action logged it. This closes a real gap: before Phase 23, the only redaction anywhere in
+the codebase was one hand-rolled helper local to `ProcessPaymentWebhookAction`, giving no
+systemic guarantee for any other `Log::*()` call site. Deliberately excludes short/generic
+fragments like `code` or `pan` that would over-redact ordinary debugging fields (`status_code`,
+`country_code`, ...) — see the processor's own docblock. Verified two ways, not just unit-tested
+in isolation: `tests/Unit/Logging/RedactSensitiveDataProcessorTest.php` covers the processor's
+logic directly, and `tests/Feature/Logging/LogRedactionWiringTest.php` writes through the actual
+`single` channel to a real file and reads it back — proving the `config/logging.php` wiring
+itself works, not just the class it points at.
 
 ## Error handling
 
@@ -189,15 +223,30 @@ HTTPS everywhere in production. Laravel's built-in encryption (`encrypted` cast 
 `Crypt` facade) for any field needing at-rest protection beyond what the database provides.
 Password hashing uses Laravel's configured algorithm (bcrypt/argon2), never MD5/SHA1.
 
-## Data retention (design; policy finalized per-domain as each domain lands)
+## Data retention (baseline hygiene implemented Phase 23; full policy still per-domain design)
 
-Retention windows for logs, GPS history, OTPs, sessions, uploaded documents, and deleted
-accounts are configurable, not hardcoded, and documented per-domain once implemented. Account
-deletion follows: request → identity confirmation → legal/financial retention check →
-anonymization/deletion → completion. Financial ledger entries required for compliance are never
-deleted outright even after account deletion; see `docs/COMPLIANCE.md`.
+`App\Console\Commands\PurgeExpiredDataCommand` (`data:purge-expired`, scheduled daily at 03:00,
+see `routes/console.php`) purges two bounded, uncontroversial categories past a configurable
+window (`config/retention.php`, `RETENTION_OTP_CODES_HOURS`/`RETENTION_LOCATION_PINGS_DAYS` —
+never hardcoded): OTP codes (functionally dead the moment they expire or are consumed; kept only
+briefly for fraud investigation) and raw GPS location-ping history (a real privacy exposure if
+kept indefinitely, and completely unbounded before this). Both are plain bulk deletes, verified
+against a real database via `tests/Feature/Console/PurgeExpiredDataCommandTest.php` (creates real
+rows, runs the command, asserts old ones are gone and recent ones survive) and confirmed against
+this dev box's actual database, not just the test suite.
+
+This does **not** attempt the full account-deletion/anonymization workflow below, which stays
+design-only pending a compliance decision on retention windows for sessions, uploaded documents,
+and deleted-account data. Account deletion follows: request → identity confirmation →
+legal/financial retention check → anonymization/deletion → completion. Financial ledger entries
+required for compliance are never deleted outright even after account deletion; see
+`docs/COMPLIANCE.md`.
 
 ## Dependencies
 
 Before adding any package: does Laravel/Next.js already provide this? Is it maintained? Does it
 have a reasonable security history? Is it actually needed? No dependency bloat.
+
+`composer audit` and `npm audit` were run as part of the Phase 23 hardening pass: zero known
+vulnerability advisories in either dependency tree at that point in time. Re-run both whenever
+dependencies change, not just once.

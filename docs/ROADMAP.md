@@ -31,8 +31,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 19 | Customer Web App Polish | Done |
 | 20 | Provider Web / PWA | Done |
 | 21 | PWA | Done |
-| 22 | Marketing & SEO | **Done** |
-| 23 | Security Hardening | Not started |
+| 22 | Marketing & SEO | Done |
+| 23 | Security Hardening | **Done** |
 | 24 | Performance & Load Hardening | Not started |
 | 25 | Production Readiness | Not started |
 
@@ -765,6 +765,53 @@ glyphs — see `docs/MARKETING_SEO.md` for the trade-off written out in full); p
 overrides beyond the homepage/provider split (every other screen is behind a login or
 transactional and already excluded via `robots.ts`); search-console verification tags (nothing
 to verify against until a real domain exists); any blog/FAQ/content pages.
+
+## Phase 23 — Security Hardening (this phase)
+
+`docs/SECURITY.md` has said since Phase 0 that "a dedicated Phase 23 security-hardening audit
+happens before production readiness." This phase is that audit — see `docs/SECURITY_HARDENING.md`
+for the full write-up — reviewing every section that document had left as "design"/"tunable"
+across Phases 0-22 and closing what it found, rather than building new user-facing features.
+Every finding was verified live, not just reasoned about from documentation.
+
+**Five real gaps found and fixed, every one previously claimed as done or planned in
+`docs/SECURITY.md` but not actually implemented**:
+
+1. **CORS was never wired up** — no `config/cors.php` existed and `HandleCors` wasn't
+   registered, despite the docs saying it was "wired up in Phase 1." Fixed with a narrow
+   single-origin allowlist (low severity in this architecture specifically, since the browser
+   never calls the API directly — but a real, previously-undocumented gap regardless).
+2. **Log redaction was one hand-rolled helper**, not the systemic guarantee the docs claimed —
+   only `ProcessPaymentWebhookAction` redacted anything; every other `Log::*()` call site had
+   zero protection. Fixed with a Monolog processor tapped onto every persisting log channel,
+   verified both in isolation and by writing through a real channel to a real file and reading
+   it back.
+3. **The Next.js app had zero security headers**, despite the backend's own middleware claiming
+   "the Next.js app owns its own CSP." Fixed with a full header set. The CSP required real
+   empirical work, not a copied template: a strict `script-src 'self'` was tried first and
+   genuinely crashed the app's own hydration (Next.js App Router streams React Server Component
+   data via inline scripts as part of normal operation) — confirmed via a live Playwright
+   console-error capture, not assumed. The fully-strict nonce-based alternative would force every
+   page to dynamic rendering, judged out of scope for a hardening pass; `script-src` carries
+   `'unsafe-inline'` (matching Next's own documented non-nonce baseline exactly) while every
+   other directive stays strict. Verified against both `next dev` and a real `next start`
+   production build with zero console errors, and the full existing Playwright suite still passes
+   with the header active site-wide.
+4. **No data-retention hygiene existed at all** — OTP codes and raw GPS location history
+   accumulated indefinitely. Fixed with a scheduled command purging both past a configurable
+   window, verified against a real database.
+5. **IDOR/authorization spot-check — no new findings**, but recorded as having actually been
+   done: every non-admin resource-id route is either `/me/...`-scoped or explicitly re-checked
+   per-request in its controller (`SessionController::destroy`, `DocumentController::download`).
+
+`composer audit`/`npm audit` also ran clean (zero known vulnerabilities).
+
+Not yet in this phase: nonce-based strict CSP (real architectural cost, not a tweak — see above);
+the full account-deletion/anonymization compliance workflow (only OTP codes and location pings
+are purged so far); automated dependency-vulnerability scanning in CI; formal
+penetration-testing/OWASP ASVS walkthrough (this was a targeted audit against this project's own
+previously-flagged gaps, not an exhaustive external assessment); rate-limit tuning beyond what
+was already documented.
 
 ## Definition of Done for every phase
 
