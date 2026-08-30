@@ -108,8 +108,9 @@ phase. See `docs/SECURITY.md` §Dependencies.
   concrete XSS-adjacent risk ever makes the trade-off worth it.
 - The full account-deletion/anonymization compliance workflow (`docs/SECURITY.md` §Data
   retention) — only OTP codes and location pings are purged so far.
-- Automated dependency-vulnerability scanning in CI (this phase's audit was a manual one-time
-  run) — a natural fit for `docs/DEPLOYMENT.md`'s CI pipeline once one exists.
+- ~~Automated dependency-vulnerability scanning in CI~~ — closed post-roadmap:
+  `.github/workflows/{backend,frontend}.yml` now run `composer audit`/`npm audit` on every push,
+  so this phase's manual, one-time-run finding doesn't go stale silently.
 - Penetration testing / a formal OWASP ASVS checklist walkthrough — this phase was a targeted
   audit against this document's own previously-flagged gaps, not an exhaustive external-style
   security assessment.

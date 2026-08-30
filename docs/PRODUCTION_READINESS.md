@@ -80,9 +80,10 @@ that exact script needed a substitute path on this specific machine.
 
 ## Not yet in this phase
 
-- Nonce-based strict CSP, the full account-deletion/anonymization compliance workflow,
-  automated dependency-vulnerability scanning in CI, and formal penetration testing — all
-  already deferred by `docs/SECURITY_HARDENING.md` (Phase 23) and still out of scope here.
+- Nonce-based strict CSP, the full account-deletion/anonymization compliance workflow, and formal
+  penetration testing — already deferred by `docs/SECURITY_HARDENING.md` (Phase 23) and still out
+  of scope here. (Automated dependency-vulnerability scanning in CI, also deferred by Phase 23,
+  was closed shortly after this phase — see Post-roadmap below.)
 - Real load/stress testing against production-scale data — still deferred by
   `docs/PERFORMANCE.md` (Phase 24); needs a staging environment with realistic data volume.
 - An actual off-site backup upload target — no S3-equivalent credentials exist yet; the
@@ -94,3 +95,27 @@ that exact script needed a substitute path on this specific machine.
   box at all (`docs/DEPLOYMENT.md` §Horizon on Windows, pre-existing, not new to this phase).
 - A dedicated Reverb connection-health check on `/api/v1/health` — the endpoint still only
   checks database and Redis.
+
+## Post-roadmap: CI hardening
+
+This project's 25 planned phases are complete as of this document. The first thing done
+afterward, still following the same "audit what's already there, fix what's found" methodology:
+`.github/workflows/{backend,frontend}.yml` existed and already ran the full local gate
+(Pint/Larastan/PHPUnit, ESLint/tsc/Prettier/Vitest/build) on every push, but had two real gaps.
+
+1. **No dependency-vulnerability scanning at all in CI** — `composer audit`/`npm audit` had only
+   ever been run manually, during Phases 23-25, with no guarantee either check would be re-run on
+   a future dependency bump. Both workflows now run their respective audit on every push.
+2. **The Playwright e2e suite had never run in CI, at all** — despite being the tool that caught
+   several of this project's real bugs first-hand (a strict CSP breaking Next.js's own hydration
+   in Phase 23, `proxy.ts` silently blocking public PWA/SEO metadata routes in Phases 21-22, the
+   original `proxy.ts`-vs-`middleware.ts` rename bug in Phase 17). A regression in any of those
+   areas would previously have shipped undetected until someone happened to test it manually.
+   Added a new `e2e` job to `frontend.yml`. Checked first whether this needed the Laravel backend
+   running too (it doesn't — every current spec covers Next.js-app-only behavior: `proxy.ts`
+   redirects, PWA manifest/icons/service-worker, SEO metadata, security headers), so the job only
+   needs Node + Playwright's own browser install, no Postgres/Redis/backend services. Verified
+   locally by simulating the exact CI codepath (`CI=true npm run test:e2e`, which forces
+   Playwright's `webServer` to start a genuinely fresh `next dev` instance rather than reusing one
+   already running, matching what a clean CI runner does) — all 22 tests passed, and the spawned
+   server was confirmed torn down afterward.

@@ -88,3 +88,13 @@ jobs:
           DB_PASSWORD: postgres
           REDIS_HOST: 127.0.0.1
         run: php artisan test
+
+      # Post-Phase-25 CI hardening (see docs/PRODUCTION_READINESS.md and
+      # docs/SECURITY_HARDENING.md §Not yet in this phase, which had
+      # flagged automated dependency-vulnerability scanning in CI as not
+      # yet done) — matches `composer audit`'s clean result confirmed
+      # manually during Phase 23/24/25; this makes that check run on
+      # every push instead of being a one-time manual check that goes
+      # stale.
+      - name: Dependency vulnerability audit
+        run: composer audit
