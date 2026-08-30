@@ -1,0 +1,39 @@
+; Horizon (queue supervisor) — see docs/DEPLOYMENT.md §Horizon on Windows
+; and docs/PRODUCTION_READINESS.md. This unit only makes sense on the
+; real Linux production/staging host: Horizon needs the pcntl/posix PHP
+; extensions, which don't exist for Windows PHP builds at all (not just
+; disabled) — local dev on this Windows box runs `php artisan queue:work`
+; directly instead (see infrastructure/systemd-queue-worker.service),
+; which is also this unit's automatic fallback if Horizon somehow isn't
+; usable on a given host.
+;
+; Install: copy to /etc/systemd/system/horizon.service, edit the paths/
+; user below for the real deploy, then:
+;   sudo systemctl daemon-reload
+;   sudo systemctl enable --now horizon
+;
+; `systemctl reload horizon` (not restart) is what Horizon's own deploy
+; guidance recommends — it lets in-flight jobs finish via
+; `php artisan horizon:terminate` before restarting workers, rather than
+; killing them mid-job.
+
+[Unit]
+Description=Riyadh Tow Platform - Laravel Horizon
+After=network.target redis.service postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/riyadh-tow/apps/backend
+ExecStart=/usr/bin/php artisan horizon
+ExecReload=/usr/bin/php artisan horizon:terminate
+Restart=always
+RestartSec=5
+; Horizon terminates gracefully on its own once told to via
+; horizon:terminate — give it real time to drain in-flight jobs before
+; systemd would otherwise send SIGKILL.
+TimeoutStopSec=90
+
+[Install]
+WantedBy=multi-user.target

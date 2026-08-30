@@ -231,4 +231,27 @@ class LiveLocationTest extends TestCase
         $this->postJson('/api/v1/drivers/me/location', ['latitude' => 24.7, 'longitude' => 46.7])
             ->assertStatus(401);
     }
+
+    /**
+     * Phase 25 (Production Readiness) finding: the 'location-ping'
+     * RateLimiter (60/min per driver, see App\Providers\AppServiceProvider)
+     * was defined and documented but never actually exercised by a test —
+     * a defined limiter isn't the same as an enforced one.
+     */
+    public function test_location_ping_is_rate_limited_per_driver(): void
+    {
+        [$driverToken] = $this->registerApprovedProviderWithAvailableTruck('+966501110074', '+966502220074');
+
+        for ($i = 0; $i < 60; $i++) {
+            $this->actingAsToken('POST', $driverToken, '/api/v1/drivers/me/location', [
+                'latitude' => self::PICKUP_LAT,
+                'longitude' => self::PICKUP_LNG,
+            ])->assertOk();
+        }
+
+        $this->actingAsToken('POST', $driverToken, '/api/v1/drivers/me/location', [
+            'latitude' => self::PICKUP_LAT,
+            'longitude' => self::PICKUP_LNG,
+        ])->assertStatus(429);
+    }
 }

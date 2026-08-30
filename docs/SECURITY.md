@@ -123,18 +123,23 @@ super-admin action is exempt from this.
 
 ## Rate limiting baseline (tunable, implemented per-endpoint as each lands)
 
+A defined `RateLimiter::for(...)` closure and an actually-enforced one aren't the same thing
+until a request proves it — three of these had never been exercised by a test until Phase 25
+(marked "verified, Phase 25" below); the rest already had live-verification tests from the phase
+that built them.
+
 | Endpoint class | Limit |
 |---|---|
-| OTP send | 5 / hour |
-| OTP verify | 5 attempts |
+| OTP send | 5 / hour — verified, Phase 1 |
+| OTP verify | 5 attempts — verified, Phase 1 |
 | Login | 10 / 15 min |
-| Order create | 5 / 10 min — implemented, Phase 8 |
-| Public estimate | 20 / min per user or IP — implemented, Phase 7 (`/pricing/quote`) |
-| Maps (geocode/places/route) | 30 / min per user or IP — implemented, Phase 6 |
-| Pricing quote | 20 / min per user or IP — implemented, Phase 7 |
-| Admin login | strict, tighter than customer login |
-| Driver location ping | 60 / min per driver — implemented, Phase 11 |
-| Payment creation | 10 / 10 min per user or IP — implemented, Phase 12 |
+| Order create | 5 / 10 min — verified, Phase 8 |
+| Public estimate | 20 / min per user or IP — verified, Phase 7 (`/pricing/quote`) |
+| Maps (geocode/places/route) | 30 / min per user or IP — verified, Phase 6 |
+| Pricing quote | 20 / min per user or IP — verified, Phase 7 |
+| Admin login | 5/15min per email, 20/15min per IP — verified, Phase 25 (previously unverified) |
+| Driver location ping | 60 / min per driver — verified, Phase 25 (previously unverified) |
+| Payment creation | 10 / 10 min per user or IP — verified, Phase 25 (previously unverified) |
 | Payment webhook | 120 / min per IP — implemented, Phase 12 (public, unauthenticated) |
 
 ## Security headers (implemented, Phase 0 backend / Phase 23 frontend)
@@ -217,11 +222,27 @@ Stack traces are never shown in production (`APP_DEBUG=false` in production — 
 `docs/DEPLOYMENT.md`). Internal errors return a stable error code and a correlation ID; details
 are logged server-side only.
 
+## HTTPS enforcement (implemented, Phase 25)
+
+HTTPS everywhere in production, terminated at the reverse proxy (see
+`infrastructure/nginx-reverse-proxy.conf`), not inside Laravel itself. `bootstrap/app.php`
+configures `trustProxies()` from a `TRUSTED_PROXIES` env var (comma-separated IP/CIDR list, empty
+locally, never hardcoded) — a real Phase 25 finding: this was never configured at all before,
+meaning `$request->isSecure()` would always return `false` behind any TLS-terminating reverse
+proxy (silently disabling `SecurityHeaders`' HSTS header — "implemented since Phase 0" — in the
+exact deployment topology `docs/DEPLOYMENT.md` already describes), and `$request->ip()` would
+return the proxy's own IP for every request, collapsing every per-IP rate limiter onto one shared
+bucket for every real user behind it. Verified live in
+`tests/Feature/Security/TrustedProxiesTest.php`: HSTS only fires when a *trusted* proxy reports
+`X-Forwarded-Proto: https` (absent on plain HTTP), and two different `X-Forwarded-For` values get
+independent rate-limit buckets — proving the fix, not just the config line.
+
 ## Encryption
 
-HTTPS everywhere in production. Laravel's built-in encryption (`encrypted` cast /
-`Crypt` facade) for any field needing at-rest protection beyond what the database provides.
-Password hashing uses Laravel's configured algorithm (bcrypt/argon2), never MD5/SHA1.
+HTTPS everywhere in production (see HTTPS enforcement above). Laravel's built-in encryption
+(`encrypted` cast / `Crypt` facade) for any field needing at-rest protection beyond what the
+database provides. Password hashing uses Laravel's configured algorithm (bcrypt/argon2), never
+MD5/SHA1.
 
 ## Data retention (baseline hygiene implemented Phase 23; full policy still per-domain design)
 

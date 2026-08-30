@@ -42,5 +42,11 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Matches the test HTTP client's default REMOTE_ADDR (127.0.0.1
+             — see vendor/symfony/http-foundation/Request.php), so
+             tests/Feature/Security/TrustedProxiesTest.php can exercise
+             real X-Forwarded-* handling instead of it always being off
+             in the test environment. -->
+        <env name="TRUSTED_PROXIES" value="127.0.0.1"/>
     </php>
 </phpunit>

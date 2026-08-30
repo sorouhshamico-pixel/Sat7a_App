@@ -130,4 +130,30 @@ class AdminAuthenticationTest extends TestCase
             ->getJson('/api/v1/auth/sessions')
             ->assertStatus(403);
     }
+
+    /**
+     * Phase 25 (Production Readiness) finding: the 'admin-login'
+     * RateLimiter was defined in App\Providers\AppServiceProvider and
+     * documented in docs/SECURITY.md's rate-limiting table, but nothing
+     * verified it was ever actually reached by a request — a defined
+     * limiter and an enforced one aren't the same thing until something
+     * proves it. This is the highest-value one to actually check: brute
+     * force protection on the most privileged account type.
+     */
+    public function test_admin_login_is_rate_limited_per_email(): void
+    {
+        User::factory()->admin()->create(['email' => 'admin@example.com']);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/v1/auth/admin/login', [
+                'email' => 'admin@example.com',
+                'password' => 'wrong-password',
+            ])->assertStatus(401);
+        }
+
+        $this->postJson('/api/v1/auth/admin/login', [
+            'email' => 'admin@example.com',
+            'password' => 'wrong-password',
+        ])->assertStatus(429);
+    }
 }

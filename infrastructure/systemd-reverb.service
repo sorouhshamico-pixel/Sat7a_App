@@ -1,0 +1,33 @@
+; Reverb (self-hosted WebSocket server) — see docs/REALTIME.md and
+; docs/PRODUCTION_READINESS.md. Broadcasting failures are logged and
+; never break the underlying HTTP request (see docs/REALTIME.md), so this
+; process being briefly down degrades realtime features gracefully rather
+; than taking the whole API down — still worth supervising and restarting
+; promptly, not left down.
+;
+; Install: copy to /etc/systemd/system/reverb.service, edit the paths/
+; user below, then:
+;   sudo systemctl daemon-reload
+;   sudo systemctl enable --now reverb
+;
+; Must sit behind a WebSocket-capable reverse proxy in production (see
+; infrastructure/nginx-reverse-proxy.conf) — Reverb itself only binds a
+; plain HTTP/WS listener; TLS termination and the public-facing wss://
+; upgrade happen at the proxy.
+
+[Unit]
+Description=Riyadh Tow Platform - Laravel Reverb
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/riyadh-tow/apps/backend
+ExecStart=/usr/bin/php artisan reverb:start --host=127.0.0.1 --port=8080
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

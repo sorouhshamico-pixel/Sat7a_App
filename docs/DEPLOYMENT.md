@@ -4,7 +4,7 @@
 
 Docker was not available on the initial development machine, so local dev runs natively rather
 than via `docker-compose`. This is a deliberate per-environment choice, not a project-wide
-requirement — `infrastructure/docker-compose.yml` is still maintained for any environment where
+requirement — `docker-compose.yml` (repo root) is still maintained for any environment where
 Docker is available (CI, other contributors, staging).
 
 Prerequisites installed on this machine:
@@ -94,8 +94,13 @@ environment's own `.env`, never committed.
 
 ## Production readiness
 
-Not evaluated until Phase 25. At minimum before any real deploy: `APP_DEBUG=false`, HTTPS
-enforced, security headers verified, rate limits verified, Horizon supervised by
-systemd/supervisor on a Linux host, Reverb running behind a WebSocket-capable reverse proxy,
-queue workers supervised with restart policies, scheduled backups with a tested restore
-procedure (see `docs/MONITORING.md`).
+Implemented Phase 25 — see `docs/PRODUCTION_READINESS.md` for the full checklist and write-up.
+Summary: `trustProxies()` is now configured (`TRUSTED_PROXIES` env var — set it to the real
+reverse proxy's IP once one exists, see `infrastructure/nginx-reverse-proxy.conf`), HSTS/CORS/CSP
+were verified live under a real reverse-proxy header shape, rate limits on the highest-value
+endpoints (admin login, location ping, payment creation) are regression-tested against actual
+429s, and Sentry (off by default, `SENTRY_LARAVEL_DSN` unset) is wired for error reporting.
+`infrastructure/{systemd-horizon,systemd-queue-worker,systemd-reverb}.service` are supervisor
+unit templates for a real Linux host; `infrastructure/{backup,restore}-database.sh` are a real,
+tested backup/restore pair (see `docs/MONITORING.md` §Backup policy for what was and wasn't
+verifiable on this dev machine specifically).

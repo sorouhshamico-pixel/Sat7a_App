@@ -1,0 +1,96 @@
+# Production Readiness
+
+## Status
+
+Phase 25 — the final phase of the 25-phase roadmap (`docs/ROADMAP.md`). Implemented
+(`apps/backend`, `infrastructure/`).
+
+## Scope
+
+`docs/DEPLOYMENT.md` has said since Phase 0 that production readiness is "not evaluated until
+Phase 25." This is that evaluation: a checklist walk of everything Phase 0's own deploy checklist
+named — `APP_DEBUG=false`, HTTPS enforced, security headers verified, rate limits verified,
+Horizon/queue/Reverb supervised, scheduled backups with a tested restore procedure — closing what
+was still just a plan, and being explicit about the two items genuinely blocked by this specific
+dev machine rather than papering over them.
+
+## Checklist
+
+| Item | Status |
+|---|---|
+| `APP_DEBUG=false` in production | Already correctly implemented (Phase 1) — `app()->hasDebugModeEnabled()` gate in `ApiExceptionRenderer`; **now also regression-tested** (`tests/Feature/ApiExceptionRendererTest.php`, previously untested) |
+| HTTPS enforced | Implemented Phase 25 — `trustProxies()` + `TRUSTED_PROXIES`, real gap found and fixed (see `docs/SECURITY.md` §HTTPS enforcement) |
+| Security headers verified | Implemented Phase 23, **now verified under a real reverse-proxy header shape** (Phase 25 — HSTS specifically depends on the trustProxies fix above to ever fire in production) |
+| Rate limits verified | Three previously-unverified limiters (admin login, location ping, payment creation) now regression-tested against real 429s — see `docs/SECURITY.md`'s rate-limiting table |
+| Horizon supervised (Linux host) | `infrastructure/systemd-horizon.service` template |
+| Reverb behind a WebSocket-capable reverse proxy | `infrastructure/nginx-reverse-proxy.conf` template |
+| Queue workers supervised with restart policies | `infrastructure/systemd-queue-worker.service` template (Horizon's non-Windows-blocked fallback) |
+| Scheduled backups, tested restore procedure | `infrastructure/{backup,restore}-database.sh` — real, working scripts; backup verified live against the dev database, restore verified via a workaround (see `docs/MONITORING.md` §Backup policy for the exact caveat) |
+| Error reporting | Sentry wired, off by default (`docs/MONITORING.md` §Error reporting) |
+
+## The two-tier "found a real gap" pattern continues
+
+Every phase from 17 onward that touched infrastructure/security/performance has found at least
+one thing that was documented as done but wasn't actually verified, or configured but not
+enforced. Phase 25 is no exception, and arguably found the highest-severity one yet:
+
+**`trustProxies()` was never configured, at all**, despite `docs/DEPLOYMENT.md` already
+describing a reverse-proxy deployment topology and `SecurityHeaders`' HSTS header being marked
+"implemented since Phase 0." Two concrete, deployable-today consequences: HSTS would never
+actually fire in the real deployment topology this project's own docs describe, and — more
+seriously — every per-IP rate limiter (OTP send, admin login's IP bucket, location ping/payment
+creation's unauthenticated fallback) would collapse onto a single shared bucket for every real
+user behind that proxy, since `$request->ip()` would always resolve to the proxy's own address.
+One misbehaving client could have rate-limit-locked out every legitimate user platform-wide the
+moment this app went live behind any standard reverse proxy or load balancer. Found by walking
+`docs/DEPLOYMENT.md`'s own checklist line by line rather than assuming each item was covered by
+an earlier phase's work, fixed with an env-configurable `TRUSTED_PROXIES` list, and verified live
+(`tests/Feature/Security/TrustedProxiesTest.php`) rather than trusted on the strength of the
+config line alone — matching every other "verify the actual behavior" finding this project has
+made since Phase 17.
+
+## A blocker, handled the same way the PostGIS one was
+
+`pg_restore`/`psql` are both blocked on this specific Windows dev machine by a Windows
+Application Control Policy — confirmed genuinely OS-level (not a Claude Code sandbox restriction)
+by reproducing the exact same failure through both Git Bash and native PowerShell, the latter
+reporting the policy by name. This is the same category of environmental blocker as the PostGIS
+one `docs/DEPLOYMENT.md` has documented since Phase 6: real, external, not fixable from inside
+this project, and not something to route around with something artificial. `pg_dump` itself
+works fine and was verified for real. For the restore half specifically, a legitimate substitute
+verification was completed instead of leaving it entirely unverified — see `docs/MONITORING.md`
+§Backup policy for the full account of what that proved and what it didn't. The shipped
+`restore-database.sh` still uses the standard, correct `pg_restore` — that's the right tool for a
+real Linux target, where this Windows-only restriction won't exist; only the *verification* of
+that exact script needed a substitute path on this specific machine.
+
+## Real errors found and fixed this phase
+
+1. `trustProxies()` missing entirely — see above. The single highest-value finding of this
+   phase.
+2. The unhandled-exception → correlation-ID → sanitized-500 path in `ApiExceptionRenderer` had
+   never been tested at all, despite existing since Phase 1 and being the most important error
+   path in the whole API (the one every genuinely-unexpected production failure goes through).
+   Added `tests/Feature/ApiExceptionRendererTest.php`; confirmed it still behaves correctly with
+   Sentry installed.
+3. Three rate limiters (admin login, location ping, payment creation) were defined and documented
+   but never exercised by a request in a test — all three turned out to be correctly enforced
+   once actually checked, but "defined" and "enforced" were two different claims until this phase
+   made them the same one.
+
+## Not yet in this phase
+
+- Nonce-based strict CSP, the full account-deletion/anonymization compliance workflow,
+  automated dependency-vulnerability scanning in CI, and formal penetration testing — all
+  already deferred by `docs/SECURITY_HARDENING.md` (Phase 23) and still out of scope here.
+- Real load/stress testing against production-scale data — still deferred by
+  `docs/PERFORMANCE.md` (Phase 24); needs a staging environment with realistic data volume.
+- An actual off-site backup upload target — no S3-equivalent credentials exist yet; the
+  extension point is clearly marked in `infrastructure/backup-database.sh`.
+- A `pg_restore`-specific restore drill on a real Linux host — see the blocker section above.
+  This is the one item on `docs/DEPLOYMENT.md`'s original checklist this phase could not fully
+  close from this machine; everything else on that checklist is genuinely done.
+- Horizon dashboard screenshots/walkthrough, since Horizon itself can't run on this Windows dev
+  box at all (`docs/DEPLOYMENT.md` §Horizon on Windows, pre-existing, not new to this phase).
+- A dedicated Reverb connection-health check on `/api/v1/health` — the endpoint still only
+  checks database and Redis.

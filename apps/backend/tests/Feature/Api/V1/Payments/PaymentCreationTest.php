@@ -294,4 +294,46 @@ class PaymentCreationTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    /**
+     * Phase 25 (Production Readiness) finding: the 'payment-create'
+     * RateLimiter (10/10min per user, see App\Providers\AppServiceProvider)
+     * was defined and documented but never actually exercised by a test.
+     * Throttle middleware counts every request to the route regardless of
+     * its eventual response, so repeatedly hitting a not-yet-payable order
+     * (a real, cheap-to-set-up 422 business-rule failure) still consumes
+     * the same rate-limit budget as a successful payment would.
+     */
+    public function test_payment_creation_is_rate_limited_per_customer(): void
+    {
+        $this->seedActiveVersion();
+        $customer = $this->authenticateNewCustomer('+966503330108');
+        $customerToken = $this->tokenFor($customer);
+
+        $vehicleId = $this->actingAsToken('POST', $customerToken, '/api/v1/customers/me/vehicles', [
+            'make' => 'Toyota', 'model' => 'Camry', 'year' => 2020,
+        ])->json('data.vehicle.id');
+
+        $orderId = $this->actingAsToken('POST', $customerToken, '/api/v1/customers/me/orders', [
+            'vehicle_id' => $vehicleId,
+            'service_type' => ServiceCapability::StandardFlatbed->value,
+            'vehicle_category' => VehicleCategory::Sedan->value,
+            'pickup_latitude' => self::PICKUP_LAT,
+            'pickup_longitude' => self::PICKUP_LNG,
+            'pickup_formatted_address' => 'King Fahd Road, Riyadh',
+            'dropoff_latitude' => 24.6408,
+            'dropoff_longitude' => 46.7728,
+            'dropoff_formatted_address' => 'Al Malaz, Riyadh',
+        ])->json('data.order.id');
+
+        for ($i = 0; $i < 10; $i++) {
+            $this->actingAsToken('POST', $customerToken, "/api/v1/customers/me/orders/{$orderId}/payments", [
+                'method' => 'cash',
+            ])->assertStatus(422);
+        }
+
+        $this->actingAsToken('POST', $customerToken, "/api/v1/customers/me/orders/{$orderId}/payments", [
+            'method' => 'cash',
+        ])->assertStatus(429);
+    }
 }

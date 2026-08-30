@@ -33,8 +33,8 @@ Done below). Nothing is skipped or bypassed to "make a phase pass."
 | 21 | PWA | Done |
 | 22 | Marketing & SEO | Done |
 | 23 | Security Hardening | Done |
-| 24 | Performance & Load Hardening | **Done** |
-| 25 | Production Readiness | Not started |
+| 24 | Performance & Load Hardening | Done |
+| 25 | Production Readiness | **Done** |
 
 ## Phase 0 — Architecture & Foundation (this phase)
 
@@ -864,6 +864,61 @@ staging environment or Phase 25); automated N+1/slow-query detection in CI (Phas
 `docs/MONITORING.md`); frontend bundle-size/code-splitting audit; a full React Query cache-tuning
 pass beyond what's already documented per-screen; cursor-based pagination (offset pagination is a
 reasonable default at today's expected scale).
+
+## Phase 25 — Production Readiness (this phase, final)
+
+`docs/DEPLOYMENT.md` has said since Phase 0 that production readiness is "not evaluated until
+Phase 25." This is that evaluation — the final phase of the 25-phase roadmap — see
+`docs/PRODUCTION_READINESS.md` for the full checklist and write-up. Walked Phase 0's own deploy
+checklist item by item (`APP_DEBUG=false`, HTTPS enforced, security headers verified, rate
+limits verified, Horizon/queue/Reverb supervised, scheduled backups with a tested restore
+procedure) rather than assuming each item was already covered.
+
+**The single highest-severity finding of this entire security/hardening arc (Phases 23-25)**:
+`trustProxies()` was never configured at all, despite `docs/DEPLOYMENT.md` already describing a
+reverse-proxy deployment topology. Two concrete, deployable-today consequences: HSTS (marked
+"implemented since Phase 0") would never actually fire behind any real reverse proxy, since
+`$request->isSecure()` always returns false without a trusted `X-Forwarded-Proto`; and — more
+seriously — every per-IP rate limiter would collapse onto one shared bucket for every real user
+behind that proxy, since `$request->ip()` would always resolve to the proxy's own address, not
+the real client's. One misbehaving client could have rate-limit-locked out every legitimate user
+platform-wide the moment this app went live behind any standard load balancer. Fixed with an
+env-configurable `TRUSTED_PROXIES` list and verified live (not trusted on the config line alone):
+`tests/Feature/Security/TrustedProxiesTest.php` proves HSTS only fires with a genuinely trusted
+proxy header, and that two different forwarded client IPs get independent rate-limit buckets.
+
+Three rate limiters (admin login, driver location ping, payment creation) were defined and
+documented but had never been exercised by a request in a test — all three turned out to be
+correctly enforced once actually checked, closing the same "documented ≠ verified" gap Phase 23
+and 24 kept finding elsewhere. The unhandled-exception → correlation-ID → sanitized-500 path in
+`ApiExceptionRenderer` had never been tested at all despite existing since Phase 1 and being the
+most important error path in the API — now covered, and confirmed unchanged after installing
+Sentry (`sentry/sentry-laravel`, off by default with no DSN, hooking into the existing `report($e)`
+call automatically).
+
+Shipped a real, working backup/restore pair (`infrastructure/{backup,restore}-database.sh`) and
+systemd/nginx config templates for Horizon, a queue-worker fallback, and Reverb behind a
+WebSocket-capable reverse proxy. The backup half was verified live against the dev database
+(`pg_dump`, confirmed valid output, confirmed encrypt/decrypt round-trip); the `pg_restore`/`psql`
+half hit a genuine, external blocker — both binaries are blocked by a Windows Application Control
+Policy on this specific dev machine, confirmed via both Git Bash and native PowerShell, the same
+category of environmental limitation as the long-standing PostGIS one. Rather than leaving it
+entirely unverified, a full logical restore-and-compare round trip was completed instead via
+`pg_dump --inserts` executed through PHP's PDO driver directly (no blocked binaries needed),
+restoring into a throwaway database and confirming exact row-count matches across five tables —
+real evidence the backup data is sound, even though the specific `pg_restore` CLI invocation in
+the shipped script still needs a one-time real run on the actual Linux target before a true
+incident (see `docs/MONITORING.md` §Backup policy for the full account).
+
+Not yet in this phase: frontend error reporting (`@sentry/nextjs` or equivalent — only the
+backend got Sentry this phase, a deliberate scope call since the API carries the higher-severity
+failure modes); a `pg_restore`-specific restore drill on a real Linux host (the one item from
+Phase 0's original checklist this phase couldn't fully close from this machine); Horizon
+dashboard walkthrough (can't run on Windows at all, pre-existing limitation); a dedicated Reverb
+connection-health check; an actual off-site backup upload target (no S3-equivalent credentials
+exist yet, extension point clearly marked in the script); real load/stress testing, automated
+N+1/slow-query detection in CI, and the full account-deletion/anonymization workflow — all
+already deferred by Phases 23/24's own docs and still out of scope here.
 
 ## Definition of Done for every phase
 

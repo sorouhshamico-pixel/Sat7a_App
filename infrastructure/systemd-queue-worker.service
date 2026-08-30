@@ -1,0 +1,34 @@
+; Queue worker — see docs/PRODUCTION_READINESS.md. Use this template
+; instead of systemd-horizon.service on any host where Horizon genuinely
+; can't run (this is what local dev on this project's Windows box already
+; does — see docs/DEPLOYMENT.md §Horizon on Windows); the real Linux
+; production/staging host should prefer Horizon for its dashboard and
+; auto-scaling supervision, using this only as a documented fallback.
+;
+; Install: copy to /etc/systemd/system/queue-worker.service, edit the
+; paths/user below, then:
+;   sudo systemctl daemon-reload
+;   sudo systemctl enable --now queue-worker
+;
+; --tries=3 and a dead-letter via the `failed_jobs` table (already
+; migrated — see database/migrations) mean a job that keeps failing stops
+; retrying rather than looping forever; --max-time recycles the worker
+; process periodically to bound any slow memory growth over a long
+; uptime, a standard `queue:work` production recommendation.
+
+[Unit]
+Description=Riyadh Tow Platform - Queue Worker
+After=network.target redis.service postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/riyadh-tow/apps/backend
+ExecStart=/usr/bin/php artisan queue:work redis --tries=3 --max-time=3600 --sleep=3
+Restart=always
+RestartSec=5
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
