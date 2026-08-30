@@ -168,3 +168,18 @@ work above: every PR Dependabot opens touches `apps/backend/**` or `apps/web/**`
 what triggers `backend.yml`/`frontend.yml` — so these bumps now land against a CI pipeline that
 actually runs and actually passes, gating them for real instead of on the strength of a version
 number alone.
+
+Dependabot's very first scan opened 12 PRs immediately, proving the config out end to end. 11 were
+real, safe patch/minor bumps (Laravel framework 13.24→13.29, Reverb, Predis, `pragmarx/google2fa`,
+`react-hook-form`, `vitest`, `@types/react-dom`, `eslint-config-next` patch, and the three
+`actions/*` v4→v7 bumps, which also clear the "Node.js 20 is deprecated" annotation both workflows
+had been printing) — checked individually via `gh pr checks`, then merged (squash, branch deleted)
+after confirming the *cumulative* post-merge state on `main` also passes both workflows end to end,
+not just each PR in isolation. One (`eslint` 9→10) genuinely fails: `eslint-config-next@16.3.0`'s
+bundled `eslint-plugin-react` calls `context.getFilename()`, an API ESLint 10 removed —
+`TypeError: contextOrFilename.getFilename is not a function`, confirmed via the real CI log, not
+assumed. Not fixable in this repo; commented with the root cause and closed rather than left open
+indefinitely, since `eslint-config-next` needs to bump its own `eslint-plugin-react` dependency
+first. Re-syncing local `vendor/`/`node_modules` to match the bumped lockfiles and re-running the
+full local gate (Pint, Larastan, PHPUnit — 264 tests; ESLint, `next typegen && tsc --noEmit`,
+`next build`, Vitest — 37 tests) also passed clean, confirming no local/CI drift.
