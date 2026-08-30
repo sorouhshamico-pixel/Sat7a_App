@@ -53,11 +53,31 @@ jobs:
           extensions: pcntl, posix, pgsql, pdo_pgsql, redis
           coverage: none
 
-      - name: Install Composer dependencies
-        run: composer install --prefer-dist --no-progress
-
+      # Must happen before `composer install`, not after — its
+      # post-autoload-dump hook (`artisan package:discover`) fully boots
+      # the framework, which resolves the default broadcaster
+      # (config/broadcasting.php defaults to 'reverb' even with no .env
+      # file at all) and crashes constructing a Pusher client with a
+      # null auth key. Real Phase-25-adjacent CI bug found via `gh run
+      # list` after pushing: composer install itself had been failing on
+      # every fresh checkout since Reverb was introduced (Phase 10),
+      # invisible locally because every dev machine already has a real
+      # .env with these values generated once and kept ever since.
       - name: Copy environment file
         run: cp .env.example .env
+
+      # REVERB_APP_ID/KEY/SECRET are locally-generated identifiers for
+      # the self-hosted Reverb server, not a third-party credential (see
+      # docs/DEPLOYMENT.md §Realtime (Reverb)) — any non-empty value
+      # works for CI, which never actually starts Reverb.
+      - name: Generate CI-only Reverb identifiers
+        run: |
+          sed -i 's/^REVERB_APP_ID=$/REVERB_APP_ID=ci-app-id/' .env
+          sed -i 's/^REVERB_APP_KEY=$/REVERB_APP_KEY=ci-app-key/' .env
+          sed -i 's/^REVERB_APP_SECRET=$/REVERB_APP_SECRET=ci-app-secret/' .env
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress
 
       - name: Generate application key
         run: php artisan key:generate
