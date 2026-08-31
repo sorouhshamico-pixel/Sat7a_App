@@ -77,8 +77,9 @@ sibling endpoint happens to be shaped.
 - No document preview/download from the admin UI — `GET /api/v1/documents/{document}/download`
   exists but returns raw file bytes, not a JSON envelope, and wiring a byte-streaming Route
   Handler proxy for it wasn't done here (only metadata + verify/reject are surfaced).
-- No pagination controls on Providers/Payments/Settlements lists (Orders already has them from
-  Phase 17; these three don't yet, though the backend endpoints support it identically).
+- ~~No pagination controls on Providers/Payments/Settlements lists~~ — closed in Phase 24
+  (`docs/PERFORMANCE.md`); this section was never updated to reflect it. All three now use the
+  shared `Pagination` component.
 - No dedicated reviews-moderation screen (only a read-only list embedded in provider detail).
 - No dashboard-level finance metrics (total pending payouts, etc.) — the home page is still just
   navigation cards.

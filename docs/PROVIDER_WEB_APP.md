@@ -137,8 +137,10 @@ button — only the *next* legal statuses render as buttons.
   proxy).
 - No settlement-batch generation from the provider side (that's a finance-staff action from the
   admin app, per `docs/FINANCE_COMPLIANCE_ADMIN.md`) — a provider only views progress.
-- No pagination on any list screen (matches the same gap already noted in Phase 18's admin
-  lists).
+- ~~No pagination on any list screen~~ — closed for Settlements and Reviews in Phase 24
+  (`docs/PERFORMANCE.md`), the two screens here with genuinely unbounded lists; this section was
+  never updated to reflect it. Fleet/Drivers/Documents remain unpaginated deliberately — small,
+  bounded lists (one provider's own fleet/staff/documents) that don't need it.
 - No self-service driver "go online/offline" toggle distinct from location sharing — availability
   is still only settable by the owner/fleet manager (`drivers/{id}/availability`), matching what
   the backend actually exposes.
