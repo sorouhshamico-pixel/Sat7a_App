@@ -13,10 +13,7 @@ import { getProviderSessionToken } from "@/lib/provider-session";
 // proxy because the backend endpoint returns raw file bytes, not a JSON
 // envelope — the generic proxy's callBackend() always calls
 // `response.json()`, which throws on a PDF/image body.
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
 
   const token =
