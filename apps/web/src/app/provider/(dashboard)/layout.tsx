@@ -10,7 +10,7 @@ export default async function ProviderDashboardLayout({ children }: { children: 
   const user = await getProviderSessionUser();
 
   return (
-    <QueryProvider>
+    <QueryProvider loginPath="/provider/login" logoutPath="/api/auth/provider/logout">
       <ProviderShell user={user}>{children}</ProviderShell>
     </QueryProvider>
   );

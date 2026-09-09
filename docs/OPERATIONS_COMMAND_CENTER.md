@@ -94,9 +94,10 @@ cache invalidation on action success) — no hand-rolled loading/error state jug
 
 ## Not yet in this phase
 
-- No handling for an expired/revoked session mid-use — a stale cookie gets an
-  `UNAUTHENTICATED` envelope back from `/api/backend/...` today, which the pages don't yet catch
-  and redirect on (only the initial page-load proxy check is enforced).
+- ~~No handling for an expired/revoked session mid-use~~ — closed post-roadmap across all three
+  apps (`src/components/query-provider.tsx`'s shared `QueryCache`/`MutationCache` `onError`); see
+  `docs/PRODUCTION_READINESS.md`'s post-roadmap section for the full write-up, including a real
+  redirect-loop bug this fix's own live verification caught.
 - No tow-truck search/autocomplete for manual dispatch assignment (types a raw ID) — needs an
   admin "list tow trucks" backend endpoint that doesn't exist yet.
 - No real-time updates (WebSocket/Reverb) on the orders list/detail — every screen is

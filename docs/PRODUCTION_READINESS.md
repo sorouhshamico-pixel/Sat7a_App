@@ -238,3 +238,46 @@ dedicated automated regression test yet, since exercising real Sanctum cookie-ba
 a Route Handler needs the same session-cookie machinery as `e2e/admin-auth.spec.ts`/
 `provider-auth.spec.ts`, which was judged out of scope for this pass; a reasonable next addition
 if this path is touched again.
+
+## Post-roadmap: session-expiry handling across all three apps
+
+Closed a real, live UX bug flagged in `docs/OPERATIONS_COMMAND_CENTER.md` since that phase: a
+stale or revoked session cookie made every `apiGet`/`apiPost`/... call
+(`src/lib/api/client.ts`) throw, and nothing caught it — every screen just sat on whatever generic
+"failed to load" state its own query produced, forever, instead of sending the visitor back to
+login. Fixed centrally rather than per-page: `src/components/query-provider.tsx`'s shared
+`QueryClient` now takes a `QueryCache`/`MutationCache` `onError` that recognizes the backend's
+`UNAUTHENTICATED` error code (`App\Support\Enums\ErrorCode::Unauthenticated`, checked by code, not
+just HTTP status — 401 is also used for a few login-page-specific failures like a wrong password
+that must stay an inline error, not a redirect) and reacts once, everywhere, since every dashboard
+layout (`admin/(dashboard)`, `provider/(dashboard)`, `(customer)`) already shares this one
+provider.
+
+**Live verification (against a real running backend, minted-token bogus-cookie approach matching
+the document-download work above) caught a real redirect loop the first cut of this fix didn't
+anticipate**: `src/proxy.ts`'s own gate is presence-only by design (see its own top comment) and
+bounces an already-logged-in visitor away from the login page back to the dashboard — so simply
+navigating to `/login` while the (merely invalid, still *present*) session cookie remained set
+just sent the browser right back where it came from, looping forever. Fixing it required actually
+clearing the cookie server-side — through the app's own `/api/auth/*/logout` Route Handler — before
+navigating, not just changing `window.location.href`.
+
+That fix then surfaced a second real bug, this time via the *permanent* regression test
+(`e2e/session-expiry.spec.ts`) rather than the live check: the first draft of that test mocked the
+logout call away (reasoning: the e2e CI job has no live backend — see the CI-hardening section
+above), which produced a false pass, because mocking it away meant the *real* Route Handler
+(which is what actually clears the cookie) never ran at all, hiding the exact same loop behind the
+mock instead of exercising the fix. Fixed the test to let that Route Handler run for real (it's
+local Next.js code, not a live-backend dependency) — which immediately exposed a third, genuinely
+separate bug: all three logout handlers (`api/auth/{logout,provider/logout,customer/logout}`)
+awaited their best-effort backend-revocation call unguarded, so a *fully unreachable* backend (not
+just a backend correctly rejecting an already-invalid token, which returns an ordinary non-throwing
+401) threw before the local cookie-clearing lines ever ran — meaning the exact "backend is down"
+scenario this whole fix exists to handle gracefully would have thrown away the one part of the fix
+that actually breaks the redirect loop. Fixed by wrapping that one call in `.catch(() => null)` in
+all three handlers — best-effort remote revocation, unconditional local cleanup.
+
+Three real bugs found via testing an intentionally small, "obviously correct" fix, each one only
+visible by actually exercising it (live against a real backend, then via a permanent test running
+the real Route Handler) rather than reasoning about the code from its own comments — the exact
+standard this project has held every finding to since Phase 17.

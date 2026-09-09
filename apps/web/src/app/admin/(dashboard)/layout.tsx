@@ -9,7 +9,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = await getSessionUser();
 
   return (
-    <QueryProvider>
+    <QueryProvider loginPath="/admin/login" logoutPath="/api/auth/logout">
       <AdminShell user={user}>{children}</AdminShell>
     </QueryProvider>
   );

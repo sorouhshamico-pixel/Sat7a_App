@@ -6,7 +6,7 @@ export default async function CustomerLayout({ children }: { children: React.Rea
   const user = await getCustomerSessionUser();
 
   return (
-    <QueryProvider>
+    <QueryProvider loginPath="/login" logoutPath="/api/auth/customer/logout">
       <CustomerShell user={user}>{children}</CustomerShell>
     </QueryProvider>
   );
