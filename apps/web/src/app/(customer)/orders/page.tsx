@@ -1,18 +1,28 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/lib/api/client";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert } from "@/components/ui/alert";
+import { Pagination } from "@/components/pagination";
 import { orderStatusLabel, orderStatusTone } from "@/lib/orders";
 import type { OrderListItem } from "@/lib/types/order";
 
+const PAGE_SIZE = 20;
+
 export default function CustomerOrdersPage() {
+  const [page, setPage] = useState(1);
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["customer-orders"],
-    queryFn: () => apiGet<{ orders: OrderListItem[] }>("customers/me/orders"),
+    queryKey: ["customer-orders", page],
+    queryFn: () =>
+      apiGet<{ orders: OrderListItem[] }>("customers/me/orders", {
+        page: String(page),
+        per_page: String(PAGE_SIZE),
+      }),
   });
 
   return (
@@ -50,6 +60,16 @@ export default function CustomerOrdersPage() {
           </Link>
         ))}
       </div>
+
+      {data && (
+        <Pagination
+          page={page}
+          onPageChange={setPage}
+          total={Number(data.meta.total ?? 0)}
+          itemCount={data.data.orders.length}
+          pageSize={PAGE_SIZE}
+        />
+      )}
     </div>
   );
 }

@@ -281,3 +281,23 @@ Three real bugs found via testing an intentionally small, "obviously correct" fi
 visible by actually exercising it (live against a real backend, then via a permanent test running
 the real Route Handler) rather than reasoning about the code from its own comments — the exact
 standard this project has held every finding to since Phase 17.
+
+## Post-roadmap: customer order-history pagination
+
+Closed the third and last of the bounded backlog items from the same menu — flagged in
+`docs/CUSTOMER_WEB_APP.md` since Phase 19: `GET /customers/me/orders` already supported
+`page`/`per_page` (`->paginate($request->integer('per_page', 20))`), but
+`(customer)/orders/page.tsx` never sent either param, silently truncating a customer's own order
+history to the newest 20 forever. Wired in the exact shared `Pagination` component Phase 24 built
+for the analogous admin/provider gap — no new component, no new backend work.
+
+Verified live end to end, not just typechecked, matching Phase 24's own methodology exactly: sent
+a real OTP, verified it (reading the code back out of the fake SMS adapter's log line, since no
+real vendor exists — see `docs/NOTIFICATIONS.md`), created a real vehicle and 5 real orders
+through the actual `POST /customers/me/orders` endpoint until its per-customer rate limiter
+kicked in, then — following the identical precedent Phase 24 itself recorded ("25 synthetic
+provider rows were bulk-inserted directly... this was purely to produce enough rows for the
+pagination *mechanism*, not a realistic business scenario") — replicated one of those five real
+orders 20 more times directly against the database to reach 25. A real Playwright session against
+the running app then confirmed page 2 shows 25 total with genuinely different rows than page 1
+(no overlap), and clicking back to page 1 restores the exact original set.

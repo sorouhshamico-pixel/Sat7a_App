@@ -119,6 +119,7 @@ unit tests:
 - No pin-dropping map picker — text-based address autocomplete only.
 - No push/SMS notification consumption in the customer app itself (the backend already sends
   these per Phase 16; the web app doesn't yet surface a notification center).
-- No order-history pagination controls (the list endpoint supports it; the UI doesn't expose it
-  yet, matching the same gap already noted for several Phase 18 admin lists).
+- ~~No order-history pagination controls~~ — closed post-roadmap using the same shared
+  `Pagination` component Phase 24 built; see `docs/PRODUCTION_READINESS.md`'s post-roadmap
+  section.
 - No profile/settings page (name/phone editing, notification preferences).
