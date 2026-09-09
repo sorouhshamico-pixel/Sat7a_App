@@ -132,9 +132,8 @@ button — only the *next* legal statuses render as buttons.
 - No self-serve provider **registration** web form — `POST /providers/register` exists and is
   public, but onboarding a brand-new provider through the web app itself wasn't built; this phase
   only covers an already-provisioned provider's staff logging in.
-- No document preview/download in the provider app (same gap Phase 18 left on the admin side —
-  the backend endpoint returns raw bytes, not JSON, and wasn't wired through a byte-streaming
-  proxy).
+- ~~No document preview/download in the provider app~~ — closed post-roadmap alongside the same
+  gap on the admin side; see `docs/PRODUCTION_READINESS.md`'s post-roadmap section.
 - No settlement-batch generation from the provider side (that's a finance-staff action from the
   admin app, per `docs/FINANCE_COMPLIANCE_ADMIN.md`) — a provider only views progress.
 - ~~No pagination on any list screen~~ — closed for Settlements and Reviews in Phase 24

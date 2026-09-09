@@ -296,7 +296,14 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
                     document.verification_status}
                 </Badge>
               </div>
-              <p className="mt-1 text-xs text-gray-500">{document.original_filename}</p>
+              <a
+                href={`/api/documents/${document.id}/download`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 block text-xs text-blue-600 hover:underline"
+              >
+                {document.original_filename}
+              </a>
               {document.rejection_reason && (
                 <p className="mt-1 text-xs text-red-700">سبب الرفض: {document.rejection_reason}</p>
               )}

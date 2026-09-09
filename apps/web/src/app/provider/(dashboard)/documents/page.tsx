@@ -130,7 +130,14 @@ export default function DocumentsPage() {
                 <p className="text-sm font-medium text-gray-900">
                   {DOCUMENT_TYPE_LABELS[document.document_type] ?? document.document_type}
                 </p>
-                <p className="text-xs text-gray-500">{document.original_filename}</p>
+                <a
+                  href={`/api/documents/${document.id}/download`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  {document.original_filename}
+                </a>
                 {document.rejection_reason && (
                   <p className="text-xs text-red-600">السبب: {document.rejection_reason}</p>
                 )}

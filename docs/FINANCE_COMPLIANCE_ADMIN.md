@@ -74,9 +74,11 @@ sibling endpoint happens to be shaped.
 
 ## Not yet in this phase
 
-- No document preview/download from the admin UI — `GET /api/v1/documents/{document}/download`
-  exists but returns raw file bytes, not a JSON envelope, and wiring a byte-streaming Route
-  Handler proxy for it wasn't done here (only metadata + verify/reject are surfaced).
+- ~~No document preview/download from the admin UI~~ — closed post-roadmap: a dedicated
+  `src/app/api/documents/[id]/download/route.ts` Route Handler streams the raw bytes through
+  (separate from the generic `/api/backend/...` proxy, which always calls `response.json()` and
+  would throw on a PDF/image body). See `docs/PRODUCTION_READINESS.md`'s post-roadmap section for
+  the full write-up and live verification.
 - ~~No pagination controls on Providers/Payments/Settlements lists~~ — closed in Phase 24
   (`docs/PERFORMANCE.md`); this section was never updated to reflect it. All three now use the
   shared `Pagination` component.

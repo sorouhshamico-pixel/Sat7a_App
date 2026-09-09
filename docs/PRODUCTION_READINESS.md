@@ -210,3 +210,31 @@ a reason that test never meant to depend on. Fixed by faking Reverb reachable in
 endpoint's own business logic again. The other two tests touching `/api/v1/health`
 (`TrustedProxiesTest`'s HSTS-header assertions) were unaffected — they only assert header
 presence, not status code or body, so they never depended on the endpoint's own outcome.
+
+## Post-roadmap: document preview/download in the admin and provider apps
+
+Closed a gap flagged identically in two docs since Phase 18/20: `GET
+/api/v1/documents/{document}/download` already existed and was already permission/ownership
+checked (`App\Http\Controllers\Api\V1\DocumentController::canAccess`), but no UI anywhere could
+reach it — the backend returns raw file bytes with a real `Content-Type`/`Content-Disposition`,
+not a JSON envelope, and the generic `/api/backend/[...path]/route.ts` proxy always calls
+`response.json()` on the backend's reply, which throws on a PDF/image body. Added a dedicated
+`src/app/api/documents/[id]/download/route.ts` Route Handler instead — same token-resolution
+order as the `documents/` entry in that generic proxy's `SHARED_PREFIXES` (customer → provider →
+admin, whichever session cookie is present), but streams `response.body` straight through with
+the backend's own `Content-Type`/`Content-Disposition` preserved rather than re-wrapping it as
+JSON. Wired a download link onto each document row in both `provider/(dashboard)/documents` and
+`admin/(dashboard)/providers/[id]`.
+
+Verified against a real running backend and frontend, not just typechecked: minted real Sanctum
+tokens for a genuine provider-owner user and the demo admin account, uploaded a real file onto the
+`documents` disk, then hit the new route through actual `provider_session`/`admin_session`
+cookies — confirmed real file bytes come back with the correct headers for both account types, a
+request with no cookie gets a clean `401` JSON envelope (not a leaked stack trace or a hung
+request), and a nonexistent document ID's `404` from the backend forwards through cleanly as JSON
+rather than being swallowed or mis-rendered. Test data (the throwaway provider, user, document,
+and tokens) was created and torn down directly against this dev database — this feature has no
+dedicated automated regression test yet, since exercising real Sanctum cookie-based auth through
+a Route Handler needs the same session-cookie machinery as `e2e/admin-auth.spec.ts`/
+`provider-auth.spec.ts`, which was judged out of scope for this pass; a reasonable next addition
+if this path is touched again.

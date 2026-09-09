@@ -4,7 +4,7 @@ import type { ApiEnvelope } from "./types";
 // Every call to Laravel goes through here — never `fetch()`'d directly from
 // a route handler — so the base URL and JSON headers stay in one place
 // (see docs/OPERATIONS_COMMAND_CENTER.md).
-function backendUrl(path: string): string {
+export function backendUrl(path: string): string {
   const base = process.env.BACKEND_API_URL ?? "http://localhost:8000";
 
   return `${base}/api/v1/${path.replace(/^\/+/, "")}`;
