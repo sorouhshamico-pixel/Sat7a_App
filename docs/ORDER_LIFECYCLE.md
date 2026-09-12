@@ -115,8 +115,14 @@ customer is ready to actually book — there's no intermediate persisted draft s
 - Disputes/refunds workflow (Phase 15) — the `disputed`/`refund_pending`/`refunded` order states
   exist in the matrix but nothing drives them yet (payment-level refunds are implemented, see
   `docs/PAYMENT_ARCHITECTURE.md`, but they don't move `orders.status`).
-- Driver-initiated cancellation — `OrderCancelledBy::Provider` has existed as a valid enum case
-  since this phase, but no endpoint exposes it yet.
+- ~~Driver-initiated cancellation~~ — closed post-roadmap: `POST /drivers/me/orders/{order}/cancel`
+  (`App\Http\Controllers\Api\V1\Drivers\TripController::cancel`) reuses the same
+  `CancelOrderAction` the customer-side endpoint always has, targeting
+  `OrderStatus::CancelledByProvider`. No new business logic was needed — the state machine's own
+  transition matrix already correctly restricted that target to `provider_assigned` through
+  `vehicle_loading` (never before a provider is assigned, never once `trip_started`), so the
+  `isCustomerCancellable()`-style guard the customer path has didn't need a provider equivalent.
+  See `docs/PRODUCTION_READINESS.md`'s post-roadmap section.
 
 ## Concurrency (implemented, Phase 9)
 

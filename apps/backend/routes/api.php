@@ -175,6 +175,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->name('me.location.store');
         Route::post('/me/orders/{orderPublicId}/status', [TripController::class, 'advance'])
             ->name('me.orders.status');
+        Route::post('/me/orders/{orderPublicId}/cancel', [TripController::class, 'cancel'])
+            ->name('me.orders.cancel');
     });
 
     // Customer self-service — always scoped to the caller's own profile;

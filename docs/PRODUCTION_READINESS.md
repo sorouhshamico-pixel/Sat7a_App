@@ -301,3 +301,37 @@ pagination *mechanism*, not a realistic business scenario") — replicated one o
 orders 20 more times directly against the database to reach 25. A real Playwright session against
 the running app then confirmed page 2 shows 25 total with genuinely different rows than page 1
 (no overlap), and clicking back to page 1 restores the exact original set.
+
+## Post-roadmap: driver-initiated order cancellation
+
+Closed a genuinely mechanical gap flagged since Phase 8 in both `docs/ORDER_LIFECYCLE.md` and
+`docs/LIVE_LOCATION_TRACKING.md`: `OrderCancelledBy::Provider` and `CancelOrderAction`'s full
+handling of it (targeting `OrderStatus::CancelledByProvider`, releasing a reserved tow truck back
+to `available`) had existed since Phase 8 — the *only* piece missing was a route exposing it.
+Added `POST /drivers/me/orders/{order}/cancel`
+(`App\Http\Controllers\Api\V1\Drivers\TripController::cancel`), mirroring `TripController::advance`
+exactly (same `ResolvesDriver`/`assignedOrders()` scoping) and reusing the customer-side
+`CancelOrderRequest` unchanged (an optional `reason` string is all either side ever needed).
+
+No new business-logic guard was needed: `OrderStatus::allowedTransitions()`'s matrix already
+restricted `CancelledByProvider` to exactly `provider_assigned` through `vehicle_loading` — never
+before a provider is even assigned (a driver can't cancel an order they don't have), never once
+`trip_started` (the vehicle may already be loaded). The customer path's explicit
+`isCustomerCancellable()` check is actually redundant with its own matrix subset for the same
+reason; the provider path just didn't need reinventing it. Regression-tested in
+`tests/Feature/Api/V1/Tracking/TripProgressTest.php` (the file already covering driver trip
+actions): a successful cancel frees the reserved truck, a cancel attempt after `trip_started`
+correctly gets the generic `ORDER_INVALID_TRANSITION` 422 the state machine already produces for
+any other invalid transition, and a driver cannot cancel another driver's order (404, matching
+the existing `assignedOrders()`-scoping pattern's other tests).
+
+Also wired a "cancel trip" button into the provider PWA's driver "My Trips" screen
+(`provider/(dashboard)/trips/page.tsx`), shown only while `isDriverCancellable(order.status)` is
+true, mirroring the customer app's own cancel-with-reason form exactly. This surfaced one small
+pre-existing UX gap in the same file, fixed alongside it: the "hide this trip" button and the
+dispatch-offers list's re-appearance were both gated on `status === "completed"` only, so a trip
+cancelled by the customer or an admin while a driver held it (already possible before this
+change, via the customer/admin cancel endpoints) would leave the driver stuck looking at a dead
+order card with no way to see new offers. Generalized both checks to a shared `isTripOver()`
+helper covering every terminal status (`completed` and all three `cancelled_by_*` variants), not
+just the one this phase's own endpoint added.

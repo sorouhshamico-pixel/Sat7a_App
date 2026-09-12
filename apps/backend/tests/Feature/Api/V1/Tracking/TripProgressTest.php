@@ -249,4 +249,56 @@ class TripProgressTest extends TestCase
 
         $this->assertDatabaseHas('tow_trucks', ['public_id' => $truckId, 'status' => 'available']);
     }
+
+    public function test_a_driver_can_cancel_an_assigned_order_and_frees_the_reserved_truck(): void
+    {
+        $this->seedActiveVersion();
+        [$driverToken, $truckId] = $this->registerApprovedProviderWithAvailableTruck('+966501110066', '+966502220066');
+        [$orderId] = $this->createAndAssignOrder('+966503330066', $driverToken);
+
+        $this->assertDatabaseHas('tow_trucks', ['public_id' => $truckId, 'status' => 'reserved']);
+
+        $response = $this->actingAsToken('POST', $driverToken, "/api/v1/drivers/me/orders/{$orderId}/cancel", [
+            'reason' => 'Vehicle broke down en route',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('data.order.status', 'cancelled_by_provider');
+
+        $this->assertDatabaseHas('orders', ['public_id' => $orderId, 'status' => 'cancelled_by_provider']);
+        $this->assertDatabaseHas('tow_trucks', ['public_id' => $truckId, 'status' => 'available']);
+    }
+
+    public function test_a_driver_cannot_cancel_once_the_trip_has_started(): void
+    {
+        $this->seedActiveVersion();
+        [$driverToken] = $this->registerApprovedProviderWithAvailableTruck('+966501110067', '+966502220067');
+        [$orderId] = $this->createAndAssignOrder('+966503330067', $driverToken);
+
+        foreach (['provider_en_route', 'provider_arrived', 'vehicle_loading', 'trip_started'] as $status) {
+            $this->actingAsToken('POST', $driverToken, "/api/v1/drivers/me/orders/{$orderId}/status", [
+                'status' => $status,
+            ])->assertOk();
+        }
+
+        $response = $this->actingAsToken('POST', $driverToken, "/api/v1/drivers/me/orders/{$orderId}/cancel");
+
+        $response->assertStatus(422);
+        $response->assertJsonPath('errors.0.code', 'ORDER_INVALID_TRANSITION');
+        $this->assertDatabaseHas('orders', ['public_id' => $orderId, 'status' => 'trip_started']);
+    }
+
+    public function test_a_driver_cannot_cancel_another_drivers_order(): void
+    {
+        $this->seedActiveVersion();
+        [$driverAToken] = $this->registerApprovedProviderWithAvailableTruck('+966501110068', '+966502220068');
+        [$orderId] = $this->createAndAssignOrder('+966503330068', $driverAToken);
+
+        [$driverBToken] = $this->registerApprovedProviderWithAvailableTruck('+966501110069', '+966502220069');
+
+        $response = $this->actingAsToken('POST', $driverBToken, "/api/v1/drivers/me/orders/{$orderId}/cancel");
+
+        $response->assertStatus(404);
+        $this->assertDatabaseHas('orders', ['public_id' => $orderId, 'status' => 'provider_assigned']);
+    }
 }

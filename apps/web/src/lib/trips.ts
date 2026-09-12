@@ -14,6 +14,37 @@ export const TRIP_NEXT_STATUS: Record<string, string | null> = {
   completed: null,
 };
 
+// Mirrors App\Domain\Orders\Enums\OrderStatus::allowedTransitions() — the
+// statuses from which `CancelledByProvider` is a valid target. A trip
+// already underway (`trip_started` onward) can no longer be cancelled by
+// the driver, since the vehicle may already be loaded.
+const DRIVER_CANCELLABLE_STATUSES = new Set([
+  "provider_assigned",
+  "provider_en_route",
+  "provider_arrived",
+  "vehicle_loading",
+]);
+
+export function isDriverCancellable(status: string): boolean {
+  return DRIVER_CANCELLABLE_STATUSES.has(status);
+}
+
+// Any status where the driver's active-order card is done being actionable
+// — either the driver completed it, or the order was cancelled (by the
+// driver themselves, the customer, or an admin — all three are possible
+// while a driver holds an assigned order, not just the provider-cancel
+// case this same phase added an endpoint for).
+const TRIP_OVER_STATUSES = new Set([
+  "completed",
+  "cancelled_by_customer",
+  "cancelled_by_provider",
+  "cancelled_by_admin",
+]);
+
+export function isTripOver(status: string): boolean {
+  return TRIP_OVER_STATUSES.has(status);
+}
+
 export const TRIP_NEXT_STATUS_LABEL: Record<string, string> = {
   provider_en_route: "بدء التوجه إلى الموقع",
   provider_arrived: "تأكيد الوصول",

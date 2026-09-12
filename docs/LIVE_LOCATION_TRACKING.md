@@ -97,5 +97,5 @@ driver's app pings this frequently while on a trip, but still bounded.
 - No distance/duration-traveled computation from the breadcrumb trail (e.g. for a
   dispute/review) — the raw data exists for a later phase to use, but nothing computes from it
   yet.
-- No driver-initiated cancellation endpoint — `OrderCancelledBy::Provider` has existed as a valid
-  enum case since Phase 8, but nothing exposes it; out of scope for this phase.
+- ~~No driver-initiated cancellation endpoint~~ — closed post-roadmap; see
+  `docs/ORDER_LIFECYCLE.md` and `docs/PRODUCTION_READINESS.md`'s post-roadmap section.

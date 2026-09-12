@@ -9,9 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
 import { orderStatusLabel, orderStatusTone } from "@/lib/orders";
 import { SERVICE_TYPE_LABELS } from "@/lib/service-types";
-import { TRIP_NEXT_STATUS, TRIP_NEXT_STATUS_LABEL } from "@/lib/trips";
+import {
+  isDriverCancellable,
+  isTripOver,
+  TRIP_NEXT_STATUS,
+  TRIP_NEXT_STATUS_LABEL,
+} from "@/lib/trips";
 import type { DriverDispatchOffer } from "@/lib/types/dispatch-offer";
 import type { OrderDetail } from "@/lib/types/order";
 
@@ -128,6 +134,8 @@ function ActiveOrderCard({
   onCleared: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   const advanceMutation = useMutation({
     mutationFn: (status: string) =>
@@ -138,6 +146,20 @@ function ActiveOrderCard({
     },
     onError: (err) =>
       setError(err instanceof ApiRequestError ? err.message : "تعذّر تحديث حالة الرحلة."),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () =>
+      apiPost<{ order: OrderDetail }>(`drivers/me/orders/${order.id}/cancel`, {
+        reason: cancelReason,
+      }),
+    onSuccess: (result) => {
+      setError(null);
+      setShowCancelForm(false);
+      onUpdated(result.data.order);
+    },
+    onError: (err) =>
+      setError(err instanceof ApiRequestError ? err.message : "تعذّر إلغاء الرحلة."),
   });
 
   const nextStatus = TRIP_NEXT_STATUS[order.status];
@@ -175,12 +197,37 @@ function ActiveOrderCard({
             {advanceMutation.isPending ? <Spinner /> : TRIP_NEXT_STATUS_LABEL[nextStatus]}
           </Button>
         )}
-        {order.status === "completed" && (
+        {isDriverCancellable(order.status) && (
+          <Button variant="danger" onClick={() => setShowCancelForm((v) => !v)}>
+            إلغاء الرحلة
+          </Button>
+        )}
+        {isTripOver(order.status) && (
           <Button variant="secondary" onClick={onCleared}>
             إخفاء
           </Button>
         )}
       </div>
+
+      {showCancelForm && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            cancelMutation.mutate();
+          }}
+          className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4"
+        >
+          <Input
+            placeholder="سبب الإلغاء"
+            value={cancelReason}
+            onChange={(event) => setCancelReason(event.target.value)}
+            required
+          />
+          <Button type="submit" variant="danger" disabled={cancelMutation.isPending}>
+            {cancelMutation.isPending ? <Spinner /> : "تأكيد إلغاء الرحلة"}
+          </Button>
+        </form>
+      )}
     </Card>
   );
 }
@@ -203,7 +250,7 @@ export default function TripsPage() {
     queryKey: ["driver-dispatch-offers"],
     queryFn: () => apiGet<{ offers: DriverDispatchOffer[] }>("drivers/me/dispatch-offers"),
     refetchInterval: 10000,
-    enabled: !activeOrder || activeOrder.status === "completed",
+    enabled: !activeOrder || isTripOver(activeOrder.status),
   });
 
   const acceptMutation = useMutation({
@@ -227,7 +274,7 @@ export default function TripsPage() {
   });
 
   const offers = offersQuery.data?.data.offers ?? [];
-  const showOffers = !activeOrder || activeOrder.status === "completed";
+  const showOffers = !activeOrder || isTripOver(activeOrder.status);
 
   return (
     <div className="flex flex-col gap-4">
